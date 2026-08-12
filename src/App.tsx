@@ -11,24 +11,29 @@ import { ExerciseDefinition, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
 
+function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
+  if (exercise.safety.level === 'advanced' || exercise.safety.requiresConfirmation) return true;
+
+  // Safety is defined by the exercise/protocol data, not inferred from an arbitrary duration threshold.
+  // A future protocol can explicitly require confirmation through the exercise safety metadata.
+  return false;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [preferences, setPreferences] = useState<UserPreferences>(() => StorageService.getPreferences());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
 
-  // Active session launcher
   const [activeSession, setActiveSession] = useState<{
     exercise: ExerciseDefinition;
     protocol: Protocol;
   } | null>(null);
 
-  // Safety confirmation dialog state
   const [pendingSafetySession, setPendingSafetySession] = useState<{
     exercise: ExerciseDefinition;
     protocol: Protocol;
   } | null>(null);
 
-  // Apply theme class on change
   useEffect(() => {
     const root = document.documentElement;
     if (preferences.theme === 'dark') {
@@ -36,13 +41,9 @@ export default function App() {
     } else if (preferences.theme === 'light') {
       root.classList.remove('dark');
     } else {
-      // System theme
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
+      if (prefersDark) root.classList.add('dark');
+      else root.classList.remove('dark');
     }
     StorageService.savePreferences(preferences);
   }, [preferences]);
@@ -54,8 +55,7 @@ export default function App() {
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
 
-    // Check safety warning
-    if (exercise.safety.level === 'advanced' || exercise.safety.requiresConfirmation || proto.phases.some((p) => p.id === 'hold' && p.duration >= 4)) {
+    if (protocolRequiresSafetyConfirmation(exercise, proto)) {
       setPendingSafetySession({ exercise, protocol: proto });
     } else {
       setActiveSession({ exercise, protocol: proto });
@@ -69,7 +69,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-300">
-      {/* Header */}
       {!activeSession && (
         <Header
           preferences={preferences}
@@ -79,43 +78,21 @@ export default function App() {
         />
       )}
 
-      {/* Main Tab Content */}
       {!activeSession && (
         <main className="animate-fade-in">
           {activeTab === 'home' && (
-            <HomeView
-              stats={stats}
-              onSelectExercise={handleSelectExercise}
-              onNavigateTab={(tab) => setActiveTab(tab)}
-            />
+            <HomeView stats={stats} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />
           )}
-
-          {activeTab === 'explore' && (
-            <ExploreView onSelectExercise={handleSelectExercise} />
-          )}
-
-          {activeTab === 'history' && (
-            <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />
-          )}
-
+          {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} />}
+          {activeTab === 'history' && <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />}
           {activeTab === 'settings' && (
-            <SettingsView
-              preferences={preferences}
-              onUpdatePreferences={setPreferences}
-              onRefreshStats={refreshStats}
-            />
+            <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />
           )}
         </main>
       )}
 
-      {/* Navigation Bar */}
-      <NavigationBar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        isSessionActive={!!activeSession}
-      />
+      <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} isSessionActive={!!activeSession} />
 
-      {/* Active Breathing Session Overlay */}
       {activeSession && (
         <BreathingSession
           exercise={activeSession.exercise}
@@ -127,7 +104,6 @@ export default function App() {
         />
       )}
 
-      {/* Safety Confirmation Dialog */}
       {pendingSafetySession && (
         <SafetyBanner
           exercise={pendingSafetySession.exercise}
