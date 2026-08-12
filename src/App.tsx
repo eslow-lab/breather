@@ -11,55 +11,32 @@ import { ExerciseDefinition, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
 
-function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
-  if (exercise.safety.level === 'advanced' || exercise.safety.requiresConfirmation) return true;
-
-  // Safety is defined by the exercise/protocol data, not inferred from an arbitrary duration threshold.
-  // A future protocol can explicitly require confirmation through the exercise safety metadata.
-  return false;
+function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, _protocol: Protocol): boolean {
+  return exercise.safety.level === 'advanced' || exercise.safety.requiresConfirmation;
 }
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [preferences, setPreferences] = useState<UserPreferences>(() => StorageService.getPreferences());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
-
-  const [activeSession, setActiveSession] = useState<{
-    exercise: ExerciseDefinition;
-    protocol: Protocol;
-  } | null>(null);
-
-  const [pendingSafetySession, setPendingSafetySession] = useState<{
-    exercise: ExerciseDefinition;
-    protocol: Protocol;
-  } | null>(null);
+  const [activeSession, setActiveSession] = useState<{ exercise: ExerciseDefinition; protocol: Protocol } | null>(null);
+  const [pendingSafetySession, setPendingSafetySession] = useState<{ exercise: ExerciseDefinition; protocol: Protocol } | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (preferences.theme === 'dark') {
-      root.classList.add('dark');
-    } else if (preferences.theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) root.classList.add('dark');
-      else root.classList.remove('dark');
-    }
+    if (preferences.theme === 'dark') root.classList.add('dark');
+    else if (preferences.theme === 'light') root.classList.remove('dark');
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+    else root.classList.remove('dark');
     StorageService.savePreferences(preferences);
   }, [preferences]);
 
-  const refreshStats = () => {
-    setStats(StorageService.getStats());
-  };
+  const refreshStats = () => setStats(StorageService.getStats());
 
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
-
-    if (protocolRequiresSafetyConfirmation(exercise, proto)) {
-      setPendingSafetySession({ exercise, protocol: proto });
-    } else {
-      setActiveSession({ exercise, protocol: proto });
-    }
+    if (protocolRequiresSafetyConfirmation(exercise, proto)) setPendingSafetySession({ exercise, protocol: proto });
+    else setActiveSession({ exercise, protocol: proto });
   };
 
   const handleCompleteSession = (record: SessionRecord) => {
@@ -67,27 +44,23 @@ export default function App() {
     refreshStats();
   };
 
+  const handleAbortSession = (record: SessionRecord) => {
+    StorageService.saveSession(record);
+    refreshStats();
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-300">
       {!activeSession && (
-        <Header
-          preferences={preferences}
-          onUpdatePreferences={setPreferences}
-          showBack={activeTab !== 'home'}
-          onBack={() => setActiveTab('home')}
-        />
+        <Header preferences={preferences} onUpdatePreferences={setPreferences} showBack={activeTab !== 'home'} onBack={() => setActiveTab('home')} />
       )}
 
       {!activeSession && (
         <main className="animate-fade-in">
-          {activeTab === 'home' && (
-            <HomeView stats={stats} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />
-          )}
+          {activeTab === 'home' && <HomeView stats={stats} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />}
           {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} />}
           {activeTab === 'history' && <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />}
-          {activeTab === 'settings' && (
-            <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />
-          )}
+          {activeTab === 'settings' && <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />}
         </main>
       )}
 
@@ -101,6 +74,7 @@ export default function App() {
           onUpdatePreferences={setPreferences}
           onClose={() => setActiveSession(null)}
           onCompleteSession={handleCompleteSession}
+          onAbortSession={handleAbortSession}
         />
       )}
 
