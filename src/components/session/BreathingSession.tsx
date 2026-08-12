@@ -18,6 +18,7 @@ interface BreathingSessionProps {
   onUpdatePreferences: (prefs: UserPreferences) => void;
   onClose: () => void;
   onCompleteSession: (record: SessionRecord) => void;
+  onAbortSession: (record: SessionRecord) => void;
 }
 
 export const BreathingSession: React.FC<BreathingSessionProps> = ({
@@ -27,15 +28,15 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   onUpdatePreferences,
   onClose,
   onCompleteSession,
+  onAbortSession,
 }) => {
   const engineRef = useRef<BreathingEngine | null>(null);
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(preferences.soundEnabled);
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(preferences.hapticsEnabled);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const abortRecordedRef = useRef(false);
 
-  // Engine lifecycle depends only on the breathing protocol.
-  // Changing sound/haptic preferences must never recreate or restart a session.
   useEffect(() => {
     const engine = new BreathingEngine({ protocol });
     engineRef.current = engine;
@@ -63,13 +64,10 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
     return () => {
       unsubscribe();
       engine.stop();
-      if (engineRef.current === engine) {
-        engineRef.current = null;
-      }
+      if (engineRef.current === engine) engineRef.current = null;
     };
   }, [protocol]);
 
-  // Apply preference changes independently of engine lifecycle.
   useEffect(() => {
     audioService.setMuted(!soundEnabled);
   }, [soundEnabled]);
@@ -85,9 +83,8 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
 
   const handleTogglePlayPause = () => {
     if (!engineRef.current || !engineState) return;
-    if (engineState.status === 'running') {
-      engineRef.current.pause();
-    } else if (engineState.status === 'paused') {
+    if (engineState.status === 'running') engineRef.current.pause();
+    else if (engineState.status === 'paused') {
       audioService.unlockAudio();
       engineRef.current.resume();
     }
@@ -108,9 +105,28 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   };
 
   const handleStopSession = () => {
-    if (engineRef.current) {
-      engineRef.current.stop();
+    if (abortRecordedRef.current) return;
+
+    const state = engineState;
+    if (engineRef.current) engineRef.current.stop();
+
+    if (state && state.status !== 'completed' && state.totalElapsed > 0) {
+      abortRecordedRef.current = true;
+      onAbortSession({
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        protocolId: protocol.id,
+        protocolName: protocol.name,
+        plannedDurationSeconds: state.totalPlannedDuration,
+        actualDurationSeconds: state.totalElapsed,
+        cyclesCompleted: state.currentCycle,
+        totalPlannedCycles: state.totalCycles,
+        completed: false,
+      });
     }
+
     onClose();
   };
 
@@ -132,7 +148,6 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
 
   const phaseState = engineState?.currentPhase ?? null;
   const status: SessionStatus = engineState?.status ?? 'idle';
-
   const elapsedSec = Math.floor(engineState?.totalElapsed ?? 0);
   const elapsedMinutes = Math.floor(elapsedSec / 60);
   const elapsedRemainderSec = elapsedSec % 60;
@@ -141,28 +156,16 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-[var(--bg-app)] flex flex-col justify-between p-6 sm:p-8 animate-fade-in select-none overflow-hidden">
       <div className="flex items-center justify-between max-w-md w-full mx-auto">
-        <button
-          onClick={handleStopSession}
-          aria-label="Salir de la sesión"
-          className="p-2 rounded-full bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors"
-        >
+        <button onClick={handleStopSession} aria-label="Salir de la sesión" className="p-2 rounded-full bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors">
           <X className="w-5 h-5 stroke-[2]" />
         </button>
 
         <div className="text-center">
-          <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-            {exercise.name}
-          </h2>
-          <p className="text-[11px] text-[var(--text-muted)] tracking-wider uppercase font-medium">
-            {protocol.name}
-          </p>
+          <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">{exercise.name}</h2>
+          <p className="text-[11px] text-[var(--text-muted)] tracking-wider uppercase font-medium">{protocol.name}</p>
         </div>
 
-        <button
-          onClick={handleToggleSound}
-          aria-label={soundEnabled ? 'Silenciar' : 'Activar sonido'}
-          className="p-2 rounded-full bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors"
-        >
+        <button onClick={handleToggleSound} aria-label={soundEnabled ? 'Silenciar' : 'Activar sonido'} className="p-2 rounded-full bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors">
           {soundEnabled ? <Volume2 className="w-5 h-5 stroke-[2]" /> : <VolumeX className="w-5 h-5 stroke-[2]" />}
         </button>
       </div>
@@ -172,21 +175,14 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
         <BreathingOrb phaseState={phaseState} reducedMotion={preferences.reducedMotion} />
 
         <div className="flex items-center gap-6 mt-2 text-xs font-mono font-medium text-[var(--text-muted)]">
-          <span className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)]">
-            Ciclo: <strong className="text-[var(--text-primary)]">{engineState?.currentCycle ?? 1}</strong> / {engineState?.totalCycles ?? protocol.defaultCycles}
-          </span>
-          <span className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)]">
-            Tiempo: <strong className="text-[var(--text-primary)]">{timeFormatted}</strong>
-          </span>
+          <span className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)]">Ciclo: <strong className="text-[var(--text-primary)]">{engineState?.currentCycle ?? 1}</strong> / {engineState?.totalCycles ?? protocol.defaultCycles}</span>
+          <span className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)]">Tiempo: <strong className="text-[var(--text-primary)]">{timeFormatted}</strong></span>
         </div>
       </div>
 
       <div className="max-w-md w-full mx-auto pb-4">
         <div className="w-full bg-[var(--bg-surface)] h-1.5 rounded-full overflow-hidden mb-4 border border-[var(--border-subtle)]">
-          <div
-            className="bg-[var(--color-accent)] h-full transition-all duration-300"
-            style={{ width: `${(engineState?.overallProgress ?? 0) * 100}%` }}
-          />
+          <div className="bg-[var(--color-accent)] h-full transition-all duration-300" style={{ width: `${(engineState?.overallProgress ?? 0) * 100}%` }} />
         </div>
 
         <SessionControls
