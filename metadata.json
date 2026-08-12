@@ -1,0 +1,6 @@
+{
+  "name": "Breather",
+  "description": "A calm, precise, privacy-first guided breathing application for wellbeing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
