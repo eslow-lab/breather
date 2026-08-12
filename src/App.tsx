@@ -11,8 +11,14 @@ import { ExerciseDefinition, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
 
-function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, _protocol: Protocol): boolean {
-  return exercise.safety.level === 'advanced' || exercise.safety.requiresConfirmation;
+function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
+  const level = protocol.safety?.level ?? exercise.safety.level;
+  const requiresConfirmation = protocol.safety?.requiresConfirmation ?? exercise.safety.requiresConfirmation;
+  return level === 'advanced' || requiresConfirmation;
+}
+
+function protocolAllowsAutomaticRecommendation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
+  return protocol.safety?.automaticRecommendation ?? exercise.safety.automaticRecommendation;
 }
 
 export default function App() {
@@ -35,8 +41,20 @@ export default function App() {
 
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
-    if (protocolRequiresSafetyConfirmation(exercise, proto)) setPendingSafetySession({ exercise, protocol: proto });
-    else setActiveSession({ exercise, protocol: proto });
+
+    if (protocolRequiresSafetyConfirmation(exercise, proto)) {
+      setPendingSafetySession({ exercise, protocol: proto });
+      return;
+    }
+
+    // Automatic recommendation is a policy signal, not a safety bypass.
+    // The selected protocol has already passed its safety gate above.
+    if (!protocolAllowsAutomaticRecommendation(exercise, proto)) {
+      setPendingSafetySession({ exercise, protocol: proto });
+      return;
+    }
+
+    setActiveSession({ exercise, protocol: proto });
   };
 
   const handleCompleteSession = (record: SessionRecord) => {
