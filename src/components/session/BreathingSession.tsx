@@ -34,18 +34,15 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(preferences.hapticsEnabled);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
-  // Initialize engine on mount
+  // Engine lifecycle depends only on the breathing protocol.
+  // Changing sound/haptic preferences must never recreate or restart a session.
   useEffect(() => {
-    const engine = new BreathingEngine({
-      protocol,
-    });
+    const engine = new BreathingEngine({ protocol });
     engineRef.current = engine;
 
-    // Set initial audio/haptic preferences
-    audioService.setMuted(!preferences.soundEnabled);
-    hapticsService.setEnabled(preferences.hapticsEnabled);
+    audioService.setMuted(!soundEnabled);
+    hapticsService.setEnabled(hapticsEnabled);
 
-    // Subscribe engine events
     const unsubscribe = engine.subscribe((eventType, state) => {
       setEngineState(state);
 
@@ -60,17 +57,31 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
       }
     });
 
-    // Start engine automatically
     audioService.unlockAudio();
     engine.start();
 
     return () => {
       unsubscribe();
-      if (engineRef.current) {
-        engineRef.current.stop();
+      engine.stop();
+      if (engineRef.current === engine) {
+        engineRef.current = null;
       }
     };
-  }, [protocol, preferences.soundEnabled, preferences.hapticsEnabled]);
+  }, [protocol]);
+
+  // Apply preference changes independently of engine lifecycle.
+  useEffect(() => {
+    audioService.setMuted(!soundEnabled);
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    hapticsService.setEnabled(hapticsEnabled);
+  }, [hapticsEnabled]);
+
+  useEffect(() => {
+    setSoundEnabled(preferences.soundEnabled);
+    setHapticsEnabled(preferences.hapticsEnabled);
+  }, [preferences.soundEnabled, preferences.hapticsEnabled]);
 
   const handleTogglePlayPause = () => {
     if (!engineRef.current || !engineState) return;
@@ -122,7 +133,6 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   const phaseState = engineState?.currentPhase ?? null;
   const status: SessionStatus = engineState?.status ?? 'idle';
 
-  // Format Total Elapsed Time & Cycles
   const elapsedSec = Math.floor(engineState?.totalElapsed ?? 0);
   const elapsedMinutes = Math.floor(elapsedSec / 60);
   const elapsedRemainderSec = elapsedSec % 60;
@@ -130,7 +140,6 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[var(--bg-app)] flex flex-col justify-between p-6 sm:p-8 animate-fade-in select-none overflow-hidden">
-      {/* Top Session Bar */}
       <div className="flex items-center justify-between max-w-md w-full mx-auto">
         <button
           onClick={handleStopSession}
@@ -158,13 +167,10 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
         </button>
       </div>
 
-      {/* Main Breathing Centerpiece */}
       <div className="flex-1 flex flex-col items-center justify-center my-auto">
         <PhaseIndicator protocol={protocol} currentPhaseState={phaseState} />
-
         <BreathingOrb phaseState={phaseState} reducedMotion={preferences.reducedMotion} />
 
-        {/* Live Counters */}
         <div className="flex items-center gap-6 mt-2 text-xs font-mono font-medium text-[var(--text-muted)]">
           <span className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)]">
             Ciclo: <strong className="text-[var(--text-primary)]">{engineState?.currentCycle ?? 1}</strong> / {engineState?.totalCycles ?? protocol.defaultCycles}
@@ -175,9 +181,7 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
         </div>
       </div>
 
-      {/* Bottom Session Progress & Controls */}
       <div className="max-w-md w-full mx-auto pb-4">
-        {/* Session Progress Bar */}
         <div className="w-full bg-[var(--bg-surface)] h-1.5 rounded-full overflow-hidden mb-4 border border-[var(--border-subtle)]">
           <div
             className="bg-[var(--color-accent)] h-full transition-all duration-300"
