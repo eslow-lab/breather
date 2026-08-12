@@ -35,11 +35,21 @@ export interface Protocol {
   phases: PhaseDefinition[];
   defaultCycles: number;
   recommendedDurationMinutes?: number;
-  /** Optional protocol-specific override. When absent, exercise-level safety applies. */
+  /** Protocol-specific safety overrides. */
   safety?: Partial<SafetyDefinition>;
 }
 
+export interface ExperienceDefinition {
+  /** User-facing, non-clinical description of the experience. */
+  summary: string;
+  /** Optional experiential framing shown before starting a session. */
+  intention?: string;
+  /** Optional sensory/design notes; never interpreted as medical evidence. */
+  sensoryNotes?: string[];
+}
+
 export interface EvidenceDefinition {
+  /** Conservative description of what the evidence supports. */
   summary: string;
   notes?: string;
   sources?: EvidenceSource[];
@@ -56,7 +66,9 @@ export interface ExerciseDefinition {
   id: string;
   name: string;
   aliases?: string[];
+  /** Legacy/general description. Prefer experience.summary for user-facing experiential copy. */
   description: string;
+  experience?: ExperienceDefinition;
   goals: Goal[];
   difficulty: Difficulty;
   category: ExerciseCategory;
