@@ -1,18 +1,17 @@
 export class AudioService {
   private ctx: AudioContext | null = null;
-  private isMuted: boolean = false;
-  private isUnlocked: boolean = false;
+  private isMuted = false;
+  private isUnlocked = false;
 
   constructor() {
-    // Lazy init audio context on first user interaction
+    // Lazy init audio context on first user interaction.
   }
 
   private initContext(): void {
     if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      const AudioCtx = window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
@@ -37,12 +36,12 @@ export class AudioService {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
+      // These tunings are an experiential sound-design choice.
+      // Breather does not present them as therapeutic frequencies.
       if (phaseType === 'inhale') {
-        // Soft rising warm tone (432 Hz -> 528 Hz)
         osc.type = 'sine';
         osc.frequency.setValueAtTime(432, now);
         osc.frequency.exponentialRampToValueAtTime(528, now + 0.8);
@@ -52,7 +51,6 @@ export class AudioService {
         osc.start(now);
         osc.stop(now + 1.3);
       } else if (phaseType === 'exhale') {
-        // Descending gentle tone (528 Hz -> 396 Hz)
         osc.type = 'sine';
         osc.frequency.setValueAtTime(528, now);
         osc.frequency.exponentialRampToValueAtTime(396, now + 0.9);
@@ -62,7 +60,6 @@ export class AudioService {
         osc.start(now);
         osc.stop(now + 1.5);
       } else if (phaseType === 'hold') {
-        // Calm singing bowl chime (432 Hz)
         osc.type = 'sine';
         osc.frequency.setValueAtTime(432, now);
         gain.gain.setValueAtTime(0.1, now);
@@ -70,7 +67,6 @@ export class AudioService {
         osc.start(now);
         osc.stop(now + 1.9);
       } else {
-        // Pause/Neutral chime (360 Hz)
         osc.type = 'sine';
         osc.frequency.setValueAtTime(360, now);
         gain.gain.setValueAtTime(0.08, now);
@@ -90,23 +86,19 @@ export class AudioService {
 
     try {
       const now = this.ctx.currentTime;
-      // Arpeggio chord (528 Hz, 660 Hz, 792 Hz - Solfeggio frequencies)
+      // Experiential completion chord. The tuning is not presented as a therapeutic claim.
       const freqs = [528, 660, 792];
       freqs.forEach((freq, idx) => {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + idx * 0.25);
-
         gain.gain.setValueAtTime(0.001, now + idx * 0.25);
         gain.gain.linearRampToValueAtTime(0.12, now + idx * 0.25 + 0.1);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.25 + 2.5);
-
         osc.start(now + idx * 0.25);
         osc.stop(now + idx * 0.25 + 2.6);
       });
