@@ -15,6 +15,16 @@ let now = 0;
 let nextFrameId = 1;
 const frames = new Map<number, FrameRequestCallback>();
 
+const originalAudio = {
+  unlockAudio: audioService.unlockAudio,
+  playPhaseCue: audioService.playPhaseCue,
+  playCompletionChime: audioService.playCompletionChime,
+};
+const originalHaptics = {
+  triggerPhaseHaptic: hapticsService.triggerPhaseHaptic,
+  triggerCompletion: hapticsService.triggerCompletion,
+};
+
 function installClockAndRaf() {
   now = 0;
   nextFrameId = 1;
@@ -86,127 +96,94 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  renderer?.unmount();
+  if (renderer) act(() => renderer?.unmount());
   renderer = null;
+  audioService.unlockAudio = originalAudio.unlockAudio;
+  audioService.playPhaseCue = originalAudio.playPhaseCue;
+  audioService.playCompletionChime = originalAudio.playCompletionChime;
+  hapticsService.triggerPhaseHaptic = originalHaptics.triggerPhaseHaptic;
+  hapticsService.triggerCompletion = originalHaptics.triggerCompletion;
   restoreClockAndRaf();
 });
 
 function render(props: Partial<React.ComponentProps<typeof BreathingSession>> = {}) {
-  renderer = create(
-    <BreathingSession
-      exercise={exercise}
-      protocol={protocol}
-      preferences={preferences}
-      onUpdatePreferences={() => {}}
-      onClose={() => {}}
-      onCompleteSession={() => {}}
-      onAbortSession={() => {}}
-      {...props}
-    />,
-  );
+  act(() => {
+    renderer = create(
+      <BreathingSession
+        exercise={exercise}
+        protocol={protocol}
+        preferences={preferences}
+        onUpdatePreferences={() => {}}
+        onClose={() => {}}
+        onCompleteSession={() => {}}
+        onAbortSession={() => {}}
+        {...props}
+      />,
+    );
+  });
   return renderer;
 }
 
 test('mount starts the real engine and unmount stops it', () => {
-  const unlockAudio = audioService.unlockAudio;
   let unlockCalls = 0;
   audioService.unlockAudio = () => { unlockCalls++; };
-
   render();
-
   assert.equal(unlockCalls, 1);
   assert.ok(renderer?.root);
-
-  audioService.unlockAudio = unlockAudio;
 });
 
 test('real engine phase-start event triggers audio and haptics', () => {
-  const playPhaseCue = audioService.playPhaseCue;
-  const triggerPhaseHaptic = hapticsService.triggerPhaseHaptic;
   let audioCalls = 0;
   let hapticCalls = 0;
-  let phaseType = '';
-
-  audioService.playPhaseCue = (type: string) => {
-    audioCalls++;
-    phaseType = type;
-  };
-  hapticsService.triggerPhaseHaptic = (type: string) => {
-    hapticCalls++;
-    phaseType = type;
-  };
-
+  const phaseTypes: string[] = [];
+  audioService.playPhaseCue = (type: string) => { audioCalls++; phaseTypes.push(type); };
+  hapticsService.triggerPhaseHaptic = (type: string) => { hapticCalls++; phaseTypes.push(type); };
   render();
-
   assert.equal(audioCalls, 1);
   assert.equal(hapticCalls, 1);
-  assert.equal(phaseType, 'inhale');
-
-  audioService.playPhaseCue = playPhaseCue;
-  hapticsService.triggerPhaseHaptic = triggerPhaseHaptic;
+  assert.deepEqual(phaseTypes, ['inhale', 'inhale']);
 });
 
 test('real engine completion triggers completion feedback and completed UI', () => {
-  const playCompletionChime = audioService.playCompletionChime;
-  const triggerCompletion = hapticsService.triggerCompletion;
   let audioCalls = 0;
   let hapticCalls = 0;
-
   audioService.playCompletionChime = () => { audioCalls++; };
   hapticsService.triggerCompletion = () => { hapticCalls++; };
-
   render();
-
-  act(() => {
-    now = 1000;
-    runNextFrame();
-  });
-
+  act(() => { now = 1000; runNextFrame(); });
   assert.equal(audioCalls, 1);
   assert.equal(hapticCalls, 1);
   assert.ok(renderer?.root.findAllByType('section').length > 0);
-
-  audioService.playCompletionChime = playCompletionChime;
-  hapticsService.triggerCompletion = triggerCompletion;
 });
 
 test('pause and resume preserve the active timeline of the real engine', () => {
-  const renderer = render();
-
+  const current = render();
   now = 400;
   act(() => runNextFrame());
-
-  const pauseButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Pausar sesión');
+  const pauseButton = current.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Pausar sesión');
   assert.ok(pauseButton);
   act(() => pauseButton?.props.onClick());
-
   now = 5400;
-  const resumeButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Reanudar sesión');
+  const resumeButton = current.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Reanudar sesión');
   assert.ok(resumeButton);
   act(() => resumeButton?.props.onClick());
-
   now = 6000;
   act(() => runNextFrame());
-
-  assert.ok(renderer.root.findAllByType('section').length > 0);
+  assert.ok(current.root.findAllByType('section').length > 0);
 });
 
 test('stop records an aborted session and closes the real session', () => {
   let abortedRecord: any = null;
   let closed = false;
-
-  const renderer = render({
+  const current = render({
     onClose: () => { closed = true; },
     onAbortSession: (record) => { abortedRecord = record; },
   });
-
   now = 500;
   act(() => runNextFrame());
-
-  const stopButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Finalizar o salir de la sesión');
+  const stopButton = current.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Finalizar o salir de la sesión');
   assert.ok(stopButton);
   act(() => stopButton?.props.onClick());
-
   assert.equal(closed, true);
   assert.equal(abortedRecord?.completed, false);
   assert.equal(abortedRecord?.actualDurationSeconds, 0.5);
