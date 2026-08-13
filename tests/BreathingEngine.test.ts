@@ -112,3 +112,62 @@ test('stop emits an aborted state and does not restart the engine', () => {
   assert.equal(events.includes('SESSION_ABORTED'), true);
   assert.equal(events.filter((event) => event === 'SESSION_STARTED').length, 1);
 });
+
+test('catches up across multiple phases when a frame is delayed', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(6000);
+  const state = engine.getState();
+
+  assert.equal(state.status, 'running');
+  assert.equal(state.currentPhase?.definition.id, 'exhale');
+  assert.equal(state.currentCycle, 2);
+  assert.equal(state.totalElapsed, 6);
+});
+
+test('preserves the exact timeline when a delayed frame crosses a cycle boundary', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(5000);
+  const state = engine.getState();
+
+  assert.equal(state.status, 'running');
+  assert.equal(state.currentPhase?.definition.id, 'inhale');
+  assert.equal(state.currentCycle, 2);
+  assert.equal(state.currentPhase?.elapsedInPhase, 0);
+  assert.equal(state.totalElapsed, 5);
+});
+
+test('completes the session when a delayed frame crosses the final boundary', () => {
+  const engine = new BreathingEngine({ protocol });
+  const events: string[] = [];
+  engine.subscribe((event) => events.push(event));
+  engine.start();
+
+  tick(10000);
+  const state = engine.getState();
+
+  assert.equal(state.status, 'completed');
+  assert.equal(state.totalElapsed, 10);
+  assert.equal(state.totalRemaining, 0);
+  assert.equal(state.overallProgress, 1);
+  assert.equal(events.includes('SESSION_COMPLETED'), true);
+});
+
+test('does not accumulate pause duration into the active timeline', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(1000);
+  engine.pause();
+  now += 9000;
+  engine.resume();
+  tick(1000);
+
+  const state = engine.getState();
+  assert.equal(state.currentPhase?.definition.id, 'exhale');
+  assert.equal(state.currentPhase?.elapsedInPhase, 0);
+  assert.equal(state.totalElapsed, 2);
+});
