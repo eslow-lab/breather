@@ -2,7 +2,7 @@ export type Goal = 'calm' | 'sleep' | 'focus' | 'regulate' | 'explore';
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
-export type ExerciseCategory = 
+export type ExerciseCategory =
   | 'diaphragmatic'
   | 'pacing'
   | 'box'
@@ -14,19 +14,10 @@ export type PhaseType = 'inhale' | 'hold' | 'exhale' | 'pause';
 
 export interface PhaseDefinition {
   id: PhaseType;
-  label: string;             // e.g., "Inhala", "Retén", "Exhala", "Pausa"
-  duration: number;          // duration in seconds
-  instruction: string;       // detailed instruction e.g. "Inhala por la nariz inflando el abdomen"
-  visualScale?: number;      // target visual scale ratio (e.g. 1.0 for inhale, 0.4 for exhale)
-}
-
-export interface Protocol {
-  id: string;
-  name: string;              // e.g., "Principiante", "Estándar", "Avanzado"
-  description: string;
-  phases: PhaseDefinition[];
-  defaultCycles: number;
-  recommendedDurationMinutes?: number;
+  label: string;
+  duration: number;
+  instruction: string;
+  visualScale?: number;
 }
 
 export interface SafetyDefinition {
@@ -37,16 +28,47 @@ export interface SafetyDefinition {
   automaticRecommendation: boolean;
 }
 
+export interface Protocol {
+  id: string;
+  name: string;
+  description: string;
+  phases: PhaseDefinition[];
+  defaultCycles: number;
+  recommendedDurationMinutes?: number;
+  /** Protocol-specific safety overrides. */
+  safety?: Partial<SafetyDefinition>;
+}
+
+export interface ExperienceDefinition {
+  /** User-facing, non-clinical description of the experience. */
+  summary: string;
+  /** Optional experiential framing shown before starting a session. */
+  intention?: string;
+  /** Optional sensory/design notes; never interpreted as medical evidence. */
+  sensoryNotes?: string[];
+}
+
 export interface EvidenceDefinition {
+  /** Conservative description of what the evidence supports. */
   summary: string;
   notes?: string;
+  sources?: EvidenceSource[];
+}
+
+export interface EvidenceSource {
+  type: 'guideline' | 'systematic-review' | 'review' | 'trial' | 'textbook' | 'other';
+  citation: string;
+  url?: string;
+  accessedAt?: string;
 }
 
 export interface ExerciseDefinition {
   id: string;
   name: string;
   aliases?: string[];
+  /** Legacy/general description. Prefer experience.summary for user-facing experiential copy. */
   description: string;
+  experience?: ExperienceDefinition;
   goals: Goal[];
   difficulty: Difficulty;
   category: ExerciseCategory;
