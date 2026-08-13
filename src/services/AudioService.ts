@@ -1,7 +1,6 @@
 export class AudioService {
   private ctx: AudioContext | null = null;
   private isMuted = false;
-  private isUnlocked = false;
 
   constructor() {
     // Lazy init audio context on first user interaction.
@@ -20,7 +19,6 @@ export class AudioService {
 
   public unlockAudio(): void {
     this.initContext();
-    this.isUnlocked = true;
   }
 
   public setMuted(muted: boolean): void {
