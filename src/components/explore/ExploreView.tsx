@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { EXERCISES } from '../../data/exercises';
 import { ExerciseDefinition, Protocol } from '../../types/exercise';
 import { TechniqueDetailModal } from './TechniqueDetailModal';
-import { Sparkles, Shield, ChevronRight } from 'lucide-react';
+import { Shield, ChevronRight } from 'lucide-react';
 
 interface ExploreViewProps {
   onSelectExercise: (exercise: ExerciseDefinition, protocol?: Protocol) => void;
