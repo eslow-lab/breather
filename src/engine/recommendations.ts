@@ -16,14 +16,31 @@ export interface Recommendation {
 
 const safetyRank: Record<SafetyLevel, number> = { low: 0, moderate: 1, advanced: 2 };
 
+function maxSafetyLevel(a: SafetyLevel, b: SafetyLevel): SafetyLevel {
+  return safetyRank[a] >= safetyRank[b] ? a : b;
+}
+
+function mergeUnique(values: Array<string | undefined>): string[] {
+  return [...new Set(values.flatMap((value) => value ? [value] : []))];
+}
+
 function resolveSafety(exercise: ExerciseDefinition, protocol: Protocol) {
+  const protocolSafety = protocol.safety;
+
   return {
     ...exercise.safety,
-    ...protocol.safety,
-    warnings: protocol.safety?.warnings ?? exercise.safety.warnings,
-    contraindications: protocol.safety?.contraindications ?? exercise.safety.contraindications,
-    requiresConfirmation: protocol.safety?.requiresConfirmation ?? exercise.safety.requiresConfirmation,
-    automaticRecommendation: protocol.safety?.automaticRecommendation ?? exercise.safety.automaticRecommendation,
+    ...protocolSafety,
+    // A protocol may add restrictions, but cannot weaken the exercise-level contract.
+    level: maxSafetyLevel(exercise.safety.level, protocolSafety?.level ?? exercise.safety.level),
+    warnings: mergeUnique([exercise.safety.warnings.join('\n'), protocolSafety?.warnings?.join('\n')])
+      .flatMap((value) => value.split('\n'))
+      .filter(Boolean),
+    contraindications: mergeUnique([
+      ...(exercise.safety.contraindications ?? []),
+      ...(protocolSafety?.contraindications ?? []),
+    ]),
+    requiresConfirmation: exercise.safety.requiresConfirmation || Boolean(protocolSafety?.requiresConfirmation),
+    automaticRecommendation: exercise.safety.automaticRecommendation && protocolSafety?.automaticRecommendation !== false,
   };
 }
 
