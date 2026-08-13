@@ -17,10 +17,8 @@ export class BreathingEngine {
   private currentPhaseIndex: number = 0;
 
   // Monotonic time references (in milliseconds)
-  private sessionStartTime: number = 0;
   private phaseStartTime: number = 0;
   private pausedTime: number = 0;
-  private totalPausedDuration: number = 0;
 
   private animationFrameId: number | null = null;
 
@@ -58,9 +56,7 @@ export class BreathingEngine {
     this.status = 'running';
     this.currentCycle = 1;
     this.currentPhaseIndex = 0;
-    this.sessionStartTime = now;
     this.phaseStartTime = now;
-    this.totalPausedDuration = 0;
     this.pausedTime = 0;
 
     this.notify('SESSION_STARTED');
@@ -84,7 +80,6 @@ export class BreathingEngine {
 
     const now = performance.now();
     const pauseDelta = now - this.pausedTime;
-    this.totalPausedDuration += pauseDelta;
     this.phaseStartTime += pauseDelta; // Adjust phase start to offset paused duration
 
     this.status = 'running';

@@ -266,3 +266,26 @@ test('reports precise phase progress after delayed catch-up', () => {
   assert.equal(state.currentPhase?.progressInPhase, 0.5);
   assert.equal(state.totalElapsed, 6);
 });
+
+test('pause resume then stop leaves the session aborted and terminal', () => {
+  const engine = new BreathingEngine({ protocol });
+  const events: string[] = [];
+  engine.subscribe((event) => events.push(event));
+
+  engine.start();
+  tick(1000);
+
+  engine.pause();
+  now += 5000;
+  engine.resume();
+  tick(1000);
+
+  engine.stop();
+  engine.start();
+
+  const state = engine.getState();
+
+  assert.equal(state.status, 'aborted');
+  assert.equal(events.includes('SESSION_ABORTED'), true);
+  assert.equal(events.filter((event) => event === 'SESSION_STARTED').length, 1);
+});
