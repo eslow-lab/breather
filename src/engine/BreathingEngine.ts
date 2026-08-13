@@ -52,7 +52,7 @@ export class BreathingEngine {
   }
 
   public start(): void {
-    if (this.status === 'running' || this.status === 'aborted') return;
+    if (this.status !== 'idle') return;
 
     const now = performance.now();
     this.status = 'running';
@@ -138,21 +138,23 @@ export class BreathingEngine {
         return;
       }
 
-      this.notify('PHASE_COMPLETED');
       this.phaseStartTime += phaseDurationMs;
-      this.currentPhaseIndex++;
+      this.notify('PHASE_COMPLETED');
 
-      if (this.currentPhaseIndex >= phases.length) {
-        this.notify('CYCLE_COMPLETED');
-        this.currentPhaseIndex = 0;
-        this.currentCycle++;
-
-        if (this.currentCycle > this.totalCycles) {
+      const isLastPhase = this.currentPhaseIndex === phases.length - 1;
+      if (isLastPhase) {
+        if (this.currentCycle >= this.totalCycles) {
           this.status = 'completed';
           this.cancelTick();
           this.notify('SESSION_COMPLETED');
           return;
         }
+
+        this.currentCycle += 1;
+        this.currentPhaseIndex = 0;
+        this.notify('CYCLE_COMPLETED');
+      } else {
+        this.currentPhaseIndex += 1;
       }
 
       this.notify('PHASE_STARTED');
@@ -160,73 +162,63 @@ export class BreathingEngine {
   }
 
   public getState(): EngineState {
-    const now = this.status === 'paused' ? this.pausedTime : performance.now();
     const phases = this.protocol.phases;
+    const totalPlannedDuration = phases.reduce((sum, phase) => sum + phase.duration, 0) * this.totalCycles;
+    const totalElapsed = this.calculateTotalElapsed();
+    const totalRemaining = Math.max(0, totalPlannedDuration - totalElapsed);
 
-    if (this.status === 'idle' || phases.length === 0) {
-      const cycleDuration = phases.reduce((acc, p) => acc + p.duration, 0);
-      const totalPlannedDuration = cycleDuration * this.totalCycles;
+    let currentPhase: EngineState['currentPhase'] = null;
+    if (phases.length > 0 && this.status !== 'idle') {
+      const phase = phases[this.currentPhaseIndex];
+      const now = performance.now();
+      const elapsedInPhase = this.status === 'paused' 
+        ? this.pausedTime - this.phaseStartTime 
+        : this.status === 'completed' 
+          ? phase.duration 
+          : Math.max(0, (now - this.phaseStartTime) / 1000);
+      const clampedElapsed = Math.min(phase.duration, Math.max(0, elapsedInPhase));
 
-      return {
-        status: 'idle',
-        currentPhase: phases[0] ? {
-          definition: phases[0],
-          phaseIndex: 0,
-          totalPhases: phases.length,
-          elapsedInPhase: 0,
-          remainingInPhase: phases[0].duration,
-          progressInPhase: 0,
-        } : null,
-        currentCycle: 1,
-        totalCycles: this.totalCycles,
-        totalElapsed: 0,
-        totalRemaining: totalPlannedDuration,
-        totalPlannedDuration,
-        overallProgress: 0,
+      currentPhase = {
+        definition: phase,
+        elapsedInPhase: clampedElapsed,
+        remainingInPhase: Math.max(0, phase.duration - clampedElapsed),
+        progressInPhase: phase.duration > 0 ? clampedElapsed / phase.duration : 1,
       };
     }
 
-    const currentPhaseDef = phases[Math.min(this.currentPhaseIndex, phases.length - 1)];
-    const phaseDurationMs = currentPhaseDef.duration * 1000;
-    const elapsedInPhaseMs = Math.max(0, Math.min(phaseDurationMs, now - this.phaseStartTime));
-    const remainingInPhaseMs = Math.max(0, phaseDurationMs - elapsedInPhaseMs);
-    const progressInPhase = phaseDurationMs > 0 ? elapsedInPhaseMs / phaseDurationMs : 1;
-
-    const singleCycleDurationSec = phases.reduce((acc, p) => acc + p.duration, 0);
-    const totalPlannedDurationSec = singleCycleDurationSec * this.totalCycles;
-
-    // Calculate total elapsed
-    const completedCycles = Math.max(0, this.currentCycle - 1);
-    let previousPhasesDurationSec = 0;
-    for (let i = 0; i < this.currentPhaseIndex; i++) {
-      previousPhasesDurationSec += phases[i].duration;
-    }
-
-    const totalElapsedSec = (completedCycles * singleCycleDurationSec) + previousPhasesDurationSec + (elapsedInPhaseMs / 1000);
-    const clampedTotalElapsedSec = Math.min(totalPlannedDurationSec, totalElapsedSec);
-    const totalRemainingSec = Math.max(0, totalPlannedDurationSec - clampedTotalElapsedSec);
-    const overallProgress = totalPlannedDurationSec > 0 ? Math.min(1, clampedTotalElapsedSec / totalPlannedDurationSec) : 0;
-
     return {
       status: this.status,
-      currentPhase: {
-        definition: currentPhaseDef,
-        phaseIndex: this.currentPhaseIndex,
-        totalPhases: phases.length,
-        elapsedInPhase: elapsedInPhaseMs / 1000,
-        remainingInPhase: remainingInPhaseMs / 1000,
-        progressInPhase,
-      },
-      currentCycle: Math.min(this.currentCycle, this.totalCycles),
+      currentCycle: this.currentCycle,
       totalCycles: this.totalCycles,
-      totalElapsed: clampedTotalElapsedSec,
-      totalRemaining: totalRemainingSec,
-      totalPlannedDuration: totalPlannedDurationSec,
-      overallProgress,
+      currentPhase,
+      totalElapsed,
+      totalRemaining,
+      overallProgress: totalPlannedDuration > 0 ? totalElapsed / totalPlannedDuration : 1,
+      totalPlannedDuration,
     };
   }
 
-  public getProtocol(): Protocol {
-    return this.protocol;
+  private calculateTotalElapsed(): number {
+    const phases = this.protocol.phases;
+    const completedCycles = Math.max(0, this.currentCycle - 1);
+    const completedPhaseDuration = phases
+      .slice(0, this.currentPhaseIndex)
+      .reduce((sum, phase) => sum + phase.duration, 0);
+
+    if (this.status === 'completed') {
+      return phases.reduce((sum, phase) => sum + phase.duration, 0) * this.totalCycles;
+    }
+
+    if (this.status === 'idle') return 0;
+
+    const now = this.status === 'paused' ? this.pausedTime : performance.now();
+    const currentPhaseElapsed = Math.max(0, (now - this.phaseStartTime) / 1000);
+    const currentPhaseDuration = phases[this.currentPhaseIndex]?.duration || 0;
+
+    return Math.min(
+      phases.reduce((sum, phase) => sum + phase.duration, 0) * this.totalCycles,
+      completedCycles * phases.reduce((sum, phase) => sum + phase.duration, 0) +
+      completedPhaseDuration + Math.min(currentPhaseElapsed, currentPhaseDuration)
+    );
   }
 }
