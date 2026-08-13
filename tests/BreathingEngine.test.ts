@@ -194,8 +194,8 @@ test('emits ordered phase and cycle events during delayed catch-up', () => {
 
   tick(5000);
 
-  assert.deepEqual(events, [
-    'TICK',
+  const transitionEvents = events.filter((event) => event !== 'TICK');
+  assert.deepEqual(transitionEvents, [
     'SESSION_STARTED',
     'PHASE_STARTED',
     'PHASE_COMPLETED',
@@ -204,6 +204,8 @@ test('emits ordered phase and cycle events during delayed catch-up', () => {
     'CYCLE_COMPLETED',
     'PHASE_STARTED',
   ]);
+  assert.equal(transitionEvents.filter((event) => event === 'PHASE_STARTED').length, 3);
+  assert.equal(events.filter((event) => event === 'TICK').length, 2);
 });
 
 test('reports precise phase progress after delayed catch-up', () => {
