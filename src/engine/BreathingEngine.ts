@@ -53,7 +53,7 @@ export class BreathingEngine {
   }
 
   public start(): void {
-    if (this.status === 'running') return;
+    if (this.status === 'running' || this.status === 'aborted') return;
 
     const now = performance.now();
     this.status = 'running';
