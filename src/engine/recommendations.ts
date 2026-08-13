@@ -1,4 +1,6 @@
-import { ExerciseDefinition, Goal, Protocol, SafetyLevel } from '../types/exercise';
+import { ExerciseDefinition, Goal, Protocol } from '../types/exercise';
+
+type SafetyLevel = ExerciseDefinition['safety']['level'];
 
 export interface RecommendationRequest {
   goal: Goal;
@@ -12,7 +14,7 @@ export interface Recommendation {
   reason: string;
 }
 
-const safetyRank: Record<SafetyLevel, number> = { low: 0, moderate: 1, high: 2 };
+const safetyRank: Record<SafetyLevel, number> = { low: 0, moderate: 1, advanced: 2 };
 
 function resolveSafety(exercise: ExerciseDefinition, protocol: Protocol) {
   return {
