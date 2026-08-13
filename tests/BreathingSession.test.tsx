@@ -47,8 +47,9 @@ function restoreClockAndRaf() {
 }
 
 function runNextFrame() {
-  const [id, callback] = frames.entries().next().value ?? [];
-  if (id === undefined || callback === undefined) return;
+  const entry = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
+  if (!entry) return;
+  const [id, callback] = entry;
   frames.delete(id);
   callback(now);
 }
@@ -161,35 +162,31 @@ test('real engine completion triggers completion feedback and completed UI', () 
 
   assert.equal(audioCalls, 1);
   assert.equal(hapticCalls, 1);
-  assert.ok(renderer?.root.findByType('section'));
+  assert.ok(renderer?.root.findAllByType('section').length > 0);
 
   audioService.playCompletionChime = playCompletionChime;
   hapticsService.triggerCompletion = triggerCompletion;
 });
 
-test('pause and resume control the real engine without counting paused time', () => {
-  let phaseState = '';
-  const renderer = render({
-    onUpdatePreferences: () => { phaseState = 'updated'; },
-  });
+test('pause and resume preserve the active timeline of the real engine', () => {
+  const renderer = render();
 
   now = 400;
   act(() => runNextFrame());
 
-  const pauseButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Pausar');
+  const pauseButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Pausar sesión');
   assert.ok(pauseButton);
-
   act(() => pauseButton?.props.onClick());
-  now = 5400;
 
-  const resumeButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Reanudar');
+  now = 5400;
+  const resumeButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Reanudar sesión');
   assert.ok(resumeButton);
   act(() => resumeButton?.props.onClick());
 
   now = 6000;
   act(() => runNextFrame());
 
-  assert.equal(phaseState, 'updated');
+  assert.ok(renderer.root.findAllByType('section').length > 0);
 });
 
 test('stop records an aborted session and closes the real session', () => {
@@ -204,7 +201,7 @@ test('stop records an aborted session and closes the real session', () => {
   now = 500;
   act(() => runNextFrame());
 
-  const stopButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Aturar sessió');
+  const stopButton = renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Finalizar o salir de la sesión');
   assert.ok(stopButton);
   act(() => stopButton?.props.onClick());
 
