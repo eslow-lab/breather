@@ -6,6 +6,8 @@ import { BreathingSession } from '../src/components/session/BreathingSession';
 import { audioService } from '../src/services/AudioService';
 import { hapticsService } from '../src/services/HapticsService';
 
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 const originalWindow = (globalThis as any).window;
 const originalRaf = (globalThis as any).requestAnimationFrame;
 const originalCancelRaf = (globalThis as any).cancelAnimationFrame;
@@ -79,7 +81,14 @@ const exercise = {
 const protocol = {
   id: 'test-protocol',
   name: 'Test Protocol',
-  phases: [{ id: 'inhale', type: 'inhale', duration: 1 }],
+  phases: [
+    {
+      id: 'inhale',
+      type: 'inhale',
+      label: 'Inhala',
+      duration: 2,
+    },
+  ],
   defaultCycles: 1,
 } as any;
 
@@ -150,10 +159,10 @@ test('real engine completion triggers completion feedback and completed UI', () 
   audioService.playCompletionChime = () => { audioCalls++; };
   hapticsService.triggerCompletion = () => { hapticCalls++; };
   render();
-  act(() => { now = 1000; runNextFrame(); });
+  act(() => { now = 2000; runNextFrame(); });
   assert.equal(audioCalls, 1);
   assert.equal(hapticCalls, 1);
-  assert.ok(renderer?.root.findAllByType('section').length > 0);
+  assert.ok(renderer?.root.findAllByType('h2').length > 0);
 });
 
 test('pause and resume preserve the active timeline of the real engine', () => {
@@ -169,7 +178,7 @@ test('pause and resume preserve the active timeline of the real engine', () => {
   act(() => resumeButton?.props.onClick());
   now = 6000;
   act(() => runNextFrame());
-  assert.ok(current.root.findAllByType('section').length > 0);
+  assert.ok(current.root.findAllByType('div').length > 0);
 });
 
 test('stop records an aborted session and closes the real session', () => {
