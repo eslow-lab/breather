@@ -171,3 +171,51 @@ test('does not accumulate pause duration into the active timeline', () => {
   assert.equal(state.currentPhase?.elapsedInPhase, 0);
   assert.equal(state.totalElapsed, 2);
 });
+
+test('handles an extreme delayed frame beyond the full session', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(30000);
+  const state = engine.getState();
+
+  assert.equal(state.status, 'completed');
+  assert.equal(state.currentCycle, 2);
+  assert.equal(state.totalElapsed, 10);
+  assert.equal(state.totalRemaining, 0);
+  assert.equal(state.overallProgress, 1);
+});
+
+test('emits ordered phase and cycle events during delayed catch-up', () => {
+  const engine = new BreathingEngine({ protocol });
+  const events: string[] = [];
+  engine.subscribe((event) => events.push(event));
+  engine.start();
+
+  tick(5000);
+
+  assert.deepEqual(events, [
+    'TICK',
+    'SESSION_STARTED',
+    'PHASE_STARTED',
+    'PHASE_COMPLETED',
+    'PHASE_STARTED',
+    'PHASE_COMPLETED',
+    'CYCLE_COMPLETED',
+    'PHASE_STARTED',
+  ]);
+});
+
+test('reports precise phase progress after delayed catch-up', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(6000);
+  const state = engine.getState();
+
+  assert.equal(state.currentPhase?.definition.id, 'inhale');
+  assert.equal(state.currentPhase?.elapsedInPhase, 1);
+  assert.equal(state.currentPhase?.remainingInPhase, 1);
+  assert.equal(state.currentPhase?.progressInPhase, 0.5);
+  assert.equal(state.totalElapsed, 6);
+});
