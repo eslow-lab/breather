@@ -99,6 +99,29 @@ test('pause freezes elapsed time and resume continues from the same phase positi
   assert.equal(resumed.currentPhase?.definition.id, 'exhale');
 });
 
+test('multiple pause and resume cycles exclude all paused time from the timeline', () => {
+  const engine = new BreathingEngine({ protocol });
+  engine.start();
+
+  tick(1000);
+  engine.pause();
+  now += 5000;
+  engine.resume();
+
+  tick(1000);
+  engine.pause();
+  now += 10000;
+  engine.resume();
+
+  tick(1000);
+  const state = engine.getState();
+
+  assert.equal(state.status, 'running');
+  assert.equal(state.currentPhase?.definition.id, 'exhale');
+  assert.equal(state.currentPhase?.elapsedInPhase, 0);
+  assert.equal(state.totalElapsed, 2);
+});
+
 test('stop emits an aborted state and does not restart the engine', () => {
   const engine = new BreathingEngine({ protocol });
   const events: string[] = [];
