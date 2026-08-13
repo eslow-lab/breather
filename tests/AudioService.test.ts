@@ -103,7 +103,7 @@ test('phase cues create the expected oscillator lifecycle', async () => {
   assert.equal(contexts[0].oscillators.length, 1);
   assert.equal(contexts[0].oscillators[0].started, true);
   assert.equal(contexts[0].oscillators[0].stopped, true);
-  assert.equal(contexts[0].oscillators[0].frequencyCalls[0], [432, 10]);
+  assert.deepEqual(contexts[0].oscillators[0].frequencyCalls[0], [432, 10]);
 });
 
 test('completion chime schedules three oscillators', () => {
