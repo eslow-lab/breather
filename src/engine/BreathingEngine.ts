@@ -23,7 +23,6 @@ export class BreathingEngine {
   private totalPausedDuration: number = 0;
 
   private animationFrameId: number | null = null;
-  private lastTickTime: number = 0;
 
   constructor(config: EngineConfig) {
     this.protocol = config.protocol;
@@ -126,33 +125,29 @@ export class BreathingEngine {
 
   private processTick(): void {
     const now = performance.now();
-    this.lastTickTime = now;
-
     const phases = this.protocol.phases;
     if (phases.length === 0) return;
 
-    const currentPhaseDef = phases[this.currentPhaseIndex];
-    const phaseDurationMs = currentPhaseDef.duration * 1000;
-    const elapsedInPhaseMs = now - this.phaseStartTime;
+    while (this.status === 'running') {
+      const currentPhaseDef = phases[this.currentPhaseIndex];
+      const phaseDurationMs = currentPhaseDef.duration * 1000;
+      const elapsedInPhaseMs = now - this.phaseStartTime;
 
-    if (elapsedInPhaseMs >= phaseDurationMs) {
-      // Phase finished!
+      if (elapsedInPhaseMs < phaseDurationMs) {
+        this.notify('TICK');
+        return;
+      }
+
       this.notify('PHASE_COMPLETED');
-
-      // Calculate overrun to avoid accumulated drift
-      const overrunMs = elapsedInPhaseMs - phaseDurationMs;
-
-      // Move to next phase
+      this.phaseStartTime += phaseDurationMs;
       this.currentPhaseIndex++;
 
       if (this.currentPhaseIndex >= phases.length) {
-        // Cycle finished
         this.notify('CYCLE_COMPLETED');
         this.currentPhaseIndex = 0;
         this.currentCycle++;
 
         if (this.currentCycle > this.totalCycles) {
-          // Session Completed
           this.status = 'completed';
           this.cancelTick();
           this.notify('SESSION_COMPLETED');
@@ -160,11 +155,7 @@ export class BreathingEngine {
         }
       }
 
-      // Next phase start time compensated for overrun
-      this.phaseStartTime = now - Math.min(overrunMs, phases[this.currentPhaseIndex].duration * 1000 * 0.5);
       this.notify('PHASE_STARTED');
-    } else {
-      this.notify('TICK');
     }
   }
 
