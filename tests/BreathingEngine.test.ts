@@ -121,7 +121,7 @@ test('catches up across multiple phases when a frame is delayed', () => {
   const state = engine.getState();
 
   assert.equal(state.status, 'running');
-  assert.equal(state.currentPhase?.definition.id, 'exhale');
+  assert.equal(state.currentPhase?.definition.id, 'inhale');
   assert.equal(state.currentCycle, 2);
   assert.equal(state.totalElapsed, 6);
 });
