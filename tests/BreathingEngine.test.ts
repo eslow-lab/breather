@@ -156,6 +156,26 @@ test('completes the session when a delayed frame crosses the final boundary', ()
   assert.equal(events.includes('SESSION_COMPLETED'), true);
 });
 
+test('completed sessions are terminal and cannot be restarted', () => {
+  const engine = new BreathingEngine({ protocol });
+  const events: string[] = [];
+  engine.subscribe((event) => events.push(event));
+  engine.start();
+  tick(10000);
+
+  const completed = engine.getState();
+  engine.start();
+  const afterRestartAttempt = engine.getState();
+
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.totalElapsed, 10);
+  assert.equal(completed.totalRemaining, 0);
+  assert.equal(completed.overallProgress, 1);
+  assert.equal(afterRestartAttempt.status, 'completed');
+  assert.equal(afterRestartAttempt.totalElapsed, 10);
+  assert.equal(events.filter((event) => event === 'SESSION_STARTED').length, 1);
+});
+
 test('does not accumulate pause duration into the active timeline', () => {
   const engine = new BreathingEngine({ protocol });
   engine.start();
