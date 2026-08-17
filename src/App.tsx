@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from './components/layout/Header';
 import { NavigationBar, NavTab } from './components/layout/NavigationBar';
 import { HomeView } from './components/home/HomeView';
@@ -10,11 +10,12 @@ import { SafetyBanner } from './components/common/SafetyBanner';
 import { ExerciseDefinition, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
+import { getProtocolSafety } from './engine/recommendations';
+import { EXERCISES } from './data/exercises';
 
 function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
-  const level = protocol.safety?.level ?? exercise.safety.level;
-  const requiresConfirmation = protocol.safety?.requiresConfirmation ?? exercise.safety.requiresConfirmation;
-  return level === 'advanced' || requiresConfirmation;
+  const safety = getProtocolSafety(exercise, protocol);
+  return safety.level === 'advanced' || safety.requiresConfirmation;
 }
 
 export default function App() {
@@ -62,7 +63,7 @@ export default function App() {
 
       {!activeSession && (
         <main className="animate-fade-in">
-          {activeTab === 'home' && <HomeView stats={stats} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />}
+          {activeTab === 'home' && <HomeView stats={stats} exercises={EXERCISES} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />}
           {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} />}
           {activeTab === 'history' && <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />}
           {activeTab === 'settings' && <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />}
