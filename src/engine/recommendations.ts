@@ -63,3 +63,8 @@ export function recommendProtocol(
 export function getProtocolSafety(exercise: ExerciseDefinition, protocol: Protocol) {
   return resolveSafety(exercise, protocol);
 }
+
+export function requiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
+  const safety = getProtocolSafety(exercise, protocol);
+  return safety.level === 'advanced' || safety.requiresConfirmation;
+}
