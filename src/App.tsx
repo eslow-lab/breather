@@ -10,13 +10,8 @@ import { SafetyBanner } from './components/common/SafetyBanner';
 import { ExerciseDefinition, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
-import { getProtocolSafety } from './engine/recommendations';
+import { requiresSafetyConfirmation } from './engine/recommendations';
 import { EXERCISES } from './data/exercises';
-
-function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
-  const safety = getProtocolSafety(exercise, protocol);
-  return safety.level === 'advanced' || safety.requiresConfirmation;
-}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
@@ -38,7 +33,7 @@ export default function App() {
 
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
-    if (protocolRequiresSafetyConfirmation(exercise, proto)) {
+    if (requiresSafetyConfirmation(exercise, proto)) {
       setPendingSafetySession({ exercise, protocol: proto });
       return;
     }
