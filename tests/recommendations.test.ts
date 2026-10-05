@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recommendProtocol, getProtocolSafety } from '../src/engine/recommendations';
+import { recommendProtocol, getProtocolSafety, requiresSafetyConfirmation } from '../src/engine/recommendations';
 import type { ExerciseDefinition } from '../src/types/exercise';
 
 const baseExercise = (overrides: Partial<ExerciseDefinition> = {}): ExerciseDefinition => ({
@@ -68,4 +68,23 @@ test('getProtocolSafety lets protocol safety override exercise safety', () => {
   assert.deepEqual(safety.warnings, ['Protocol warning']);
   assert.equal(safety.requiresConfirmation, true);
   assert.equal(safety.automaticRecommendation, false);
+});
+
+
+test('requiresSafetyConfirmation uses resolved protocol safety', () => {
+  const exercise = baseExercise();
+  const lowRiskProtocol = exercise.protocols[0];
+  assert.equal(requiresSafetyConfirmation(exercise, lowRiskProtocol), false);
+
+  const confirmationProtocol = {
+    ...lowRiskProtocol,
+    safety: { requiresConfirmation: true },
+  };
+  assert.equal(requiresSafetyConfirmation(exercise, confirmationProtocol), true);
+
+  const advancedProtocol = {
+    ...lowRiskProtocol,
+    safety: { level: 'advanced' as const, requiresConfirmation: false },
+  };
+  assert.equal(requiresSafetyConfirmation(exercise, advancedProtocol), true);
 });
