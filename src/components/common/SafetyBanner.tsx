@@ -18,63 +18,40 @@ const safetyLevelLabel = {
 
 export const SafetyBanner: React.FC<SafetyBannerProps> = ({ exercise, protocol, onConfirm, onCancel }) => {
   const safety = getProtocolSafety(exercise, protocol);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const messages = [
     ...(safety.warnings ?? []),
     ...(safety.contraindications ?? []).map((item) => `Contraindicación: ${item}`),
   ];
 
+  // A native modal keeps keyboard focus inside and makes the page behind it inert.
   useEffect(() => {
-    cancelButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onCancel();
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-
-      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-      if (!focusable || focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-
-      if (event.shiftKey && active === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
     };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div
-        ref={dialogRef}
-        className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-md w-full rounded-3xl p-6 shadow-xl animate-fade-in text-left"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="safety-title"
-        aria-describedby="safety-description safety-level"
-      >
+    <dialog
+      ref={dialogRef}
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left text-[var(--text-primary)] shadow-xl animate-fade-in backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+      aria-modal="true"
+      aria-labelledby="safety-title"
+      aria-describedby="safety-description safety-level"
+      onCancel={(event) => {
+        event.preventDefault();
+        onCancel();
+      }}
+    >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
             <div className="p-2 rounded-xl bg-amber-500/10" aria-hidden="true"><AlertTriangle className="w-5 h-5 stroke-[2]" /></div>
             <h3 id="safety-title" className="text-base font-semibold text-[var(--text-primary)]">Aviso de práctica segura</h3>
           </div>
-          <button ref={cancelButtonRef} onClick={onCancel} aria-label="Cerrar aviso de práctica segura" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"><X className="w-5 h-5" aria-hidden="true" /></button>
+          <button autoFocus onClick={onCancel} aria-label="Cerrar aviso de práctica segura" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"><X className="w-5 h-5" aria-hidden="true" /></button>
         </div>
 
         <p id="safety-description" className="text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">Has seleccionado <strong>{exercise.name}</strong> ({protocol.name}). Revisa la información antes de comenzar.</p>
@@ -87,7 +64,6 @@ export const SafetyBanner: React.FC<SafetyBannerProps> = ({ exercise, protocol, 
           <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]">Cancelar</button>
           <button onClick={onConfirm} className="flex-1 py-3 rounded-xl bg-[var(--color-accent)] text-white text-xs font-medium flex items-center justify-center gap-1.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-accent)]"><ShieldCheck className="w-4 h-4" aria-hidden="true" />Entendido, iniciar</button>
         </div>
-      </div>
-    </div>
+    </dialog>
   );
 };
