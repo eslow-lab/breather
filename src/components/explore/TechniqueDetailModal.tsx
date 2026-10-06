@@ -120,9 +120,9 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
             Paso a Paso
           </h4>
           <ol className="space-y-2 text-xs text-[var(--text-secondary)] list-decimal list-inside">
-            {exercise.instructions.map((step, idx) => (
-              <li key={idx} className="leading-relaxed">
-                {step}
+            {selectedProtocol.phases.map((phase, idx) => (
+              <li key={`${phase.id}-${idx}`} className="leading-relaxed">
+                <strong>{phase.label} ({phase.duration} s):</strong> {phase.instruction}
               </li>
             ))}
           </ol>
