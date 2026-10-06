@@ -34,7 +34,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           Catálogo de Técnicas
         </h2>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
-          7 prácticas respiratorias guiadas con protocolo y advertencias claras.
+          {EXERCISES.length} prácticas respiratorias guiadas con protocolo y advertencias claras.
         </p>
       </div>
 
@@ -63,28 +63,28 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             type="button"
             key={ex.id}
             onClick={() => setActiveModalExercise(ex)}
-            className="w-full text-left group cursor-pointer bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--color-accent)] rounded-3xl p-5 transition-all hover:shadow-md flex items-center justify-between"
+            className="w-full text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--color-accent)] rounded-3xl p-5 transition-all hover:shadow-md flex items-center justify-between"
           >
-            <div className="flex-1 pr-4">
-              <div className="flex items-center gap-2 mb-1.5">
+            <span className="block flex-1 pr-4">
+              <span className="flex items-center gap-2 mb-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2 py-0.5 rounded-md">
                   {ex.category}
                 </span>
                 <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1">
                   <Shield className="w-3 h-3 text-emerald-600" /> Nivel: {ex.difficulty}
                 </span>
-              </div>
-              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
+              </span>
+              <span className="block text-base font-semibold text-[var(--text-primary)] mb-1">
                 {ex.name}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+              </span>
+              <span className="block text-xs text-[var(--text-secondary)] line-clamp-2">
                 {ex.description}
-              </p>
-            </div>
+              </span>
+            </span>
 
-            <div className="p-2.5 rounded-2xl bg-[var(--bg-app)] text-[var(--text-muted)] group-hover:text-[var(--color-accent)] group-hover:bg-[var(--color-accent-light)] transition-colors shrink-0">
+            <span className="p-2.5 rounded-2xl bg-[var(--bg-app)] text-[var(--text-muted)] group-hover:text-[var(--color-accent)] group-hover:bg-[var(--color-accent-light)] transition-colors shrink-0">
               <ChevronRight className="w-5 h-5" />
-            </div>
+            </span>
           </button>
         ))}
       </div>
