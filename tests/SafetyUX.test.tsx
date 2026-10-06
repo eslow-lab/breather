@@ -6,6 +6,8 @@ import { SafetyBanner } from '../src/components/common/SafetyBanner';
 import { TechniqueDetailModal } from '../src/components/explore/TechniqueDetailModal';
 import { HomeView } from '../src/components/home/HomeView';
 import { ExploreView } from '../src/components/explore/ExploreView';
+import { NavigationBar } from '../src/components/layout/NavigationBar';
+import App from '../src/App';
 import type { ExerciseDefinition, Protocol } from '../src/types/exercise';
 import type { UserStats } from '../src/types/session';
 
@@ -171,4 +173,87 @@ test('Home intention without automatic recommendation navigates to Explore with 
   );
   assert.match(exploreHtml, /role="status"/);
   assert.match(exploreHtml, /No hay un protocolo disponible para recomendación automática/);
+});
+
+
+test('Technique detail instructions always reflect the selected protocol phases', () => {
+  const ex = exerciseFixture({
+    instructions: ['Inhala en 4 segundos.'],
+    protocols: [
+      { ...exerciseFixture().protocols[0], id: 'short', name: 'Short cycle',
+        phases: [{ id: 'inhale', label: 'Inhala', duration: 3, instruction: 'Inhala suavemente.' }] },
+      { ...exerciseFixture().protocols[0], id: 'long', name: 'Long cycle',
+        phases: [{ id: 'inhale', label: 'Inhala', duration: 5, instruction: 'Inhala sin tensión.' }] },
+    ],
+  });
+  let renderer: ReactTestRenderer | null = null;
+  try {
+    act(() => { renderer = create(<TechniqueDetailModal exercise={ex} onClose={() => {}} onStartSession={() => {}} />); });
+    let html = JSON.stringify(renderer!.toJSON());
+    assert.match(html, /Inhala \(3 s\):/);
+    assert.doesNotMatch(html, /Inhala en 4 segundos/);
+
+    const protocolButtons = renderer!.root.findAllByType('button').filter(
+      (button) => String(button.props.className).includes('w-full text-left p-4'),
+    );
+    assert.equal(protocolButtons[0].props['aria-pressed'], true);
+    act(() => protocolButtons[1].props.onClick());
+    html = JSON.stringify(renderer!.toJSON());
+    assert.match(html, /Inhala \(5 s\):/);
+    assert.doesNotMatch(html, /Inhala \(3 s\):/);
+    assert.equal(renderer!.root.findAllByType('button').filter(
+      (button) => String(button.props.className).includes('w-full text-left p-4'),
+    )[1].props['aria-pressed'], true);
+  } finally {
+    if (renderer) act(() => renderer!.unmount());
+  }
+});
+
+test('App clears an unavailable-goal notice when navigating manually back to Explore', () => {
+  const previousDocument = (globalThis as any).document;
+  const previousWindow = (globalThis as any).window;
+  (globalThis as any).document = {
+    documentElement: { classList: { add: () => {}, remove: () => {} } },
+  };
+  (globalThis as any).window = {
+    matchMedia: () => ({ matches: false }),
+  };
+  let renderer: ReactTestRenderer | null = null;
+  try {
+    act(() => { renderer = create(<App />); });
+
+    act(() => renderer!.root.findByType(HomeView).props.onNavigateTab('explore', 'focus'));
+    assert.equal(renderer!.root.findByType(ExploreView).props.unavailableGoal, 'focus');
+
+    act(() => renderer!.root.findByType(NavigationBar).props.onTabChange('home'));
+    act(() => renderer!.root.findByType(NavigationBar).props.onTabChange('explore'));
+    assert.equal(renderer!.root.findByType(ExploreView).props.unavailableGoal, null);
+  } finally {
+    if (renderer) act(() => renderer!.unmount());
+    if (previousDocument === undefined) delete (globalThis as any).document;
+    else (globalThis as any).document = previousDocument;
+    if (previousWindow === undefined) delete (globalThis as any).window;
+    else (globalThis as any).window = previousWindow;
+  }
+});
+
+test('Explore category filters include lateral costal expansion', () => {
+  let renderer: ReactTestRenderer | null = null;
+  try {
+    act(() => { renderer = create(<ExploreView onSelectExercise={() => {}} />); });
+    const category = renderer!.root.findAllByType('button').find(
+      (button) => button.props.children === 'Expansión Costal',
+    );
+    assert.ok(category);
+    act(() => category.props.onClick());
+    assert.equal(renderer!.root.findAllByType('button').find(
+      (button) => button.props.children === 'Expansión Costal',
+    )?.props['aria-pressed'], true);
+    const cards = renderer!.root.findAllByType('button').filter(
+      (button) => String(button.props.className).includes('w-full text-left group cursor-pointer'),
+    );
+    assert.equal(cards.length, 1);
+  } finally {
+    if (renderer) act(() => renderer!.unmount());
+  }
 });
