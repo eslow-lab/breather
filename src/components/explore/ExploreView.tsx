@@ -44,6 +44,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
+            aria-pressed={selectedCategory === cat.id}
             className={`px-4 py-2 rounded-2xl text-xs font-medium whitespace-nowrap transition-all ${
               selectedCategory === cat.id
                 ? 'bg-[var(--color-accent)] text-white shadow-sm'
@@ -58,10 +59,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* Exercise Cards */}
       <div className="space-y-4">
         {filteredExercises.map((ex) => (
-          <div
+          <button
+            type="button"
             key={ex.id}
             onClick={() => setActiveModalExercise(ex)}
-            className="group cursor-pointer bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--color-accent)] rounded-3xl p-5 transition-all hover:shadow-md flex items-center justify-between"
+            className="w-full text-left group cursor-pointer bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--color-accent)] rounded-3xl p-5 transition-all hover:shadow-md flex items-center justify-between"
           >
             <div className="flex-1 pr-4">
               <div className="flex items-center gap-2 mb-1.5">
@@ -83,7 +85,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="p-2.5 rounded-2xl bg-[var(--bg-app)] text-[var(--text-muted)] group-hover:text-[var(--color-accent)] group-hover:bg-[var(--color-accent-light)] transition-colors shrink-0">
               <ChevronRight className="w-5 h-5" />
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
