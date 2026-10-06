@@ -22,6 +22,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     { id: 'pacing', label: 'Control de Ritmo' },
     { id: 'box', label: 'Respiración en Caja' },
     { id: 'pranayama', label: 'Respiración Alterna' },
+    { id: 'expansion', label: 'Expansión Costal' },
     { id: 'sighing', label: 'Suspiro Fisiológico' },
   ];
 
