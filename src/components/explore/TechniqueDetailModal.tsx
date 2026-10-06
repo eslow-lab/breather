@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getProtocolSafety } from '../../engine/recommendations';
+import { keepDialogFocus } from '../common/dialogFocus';
 import { X, Play, ShieldAlert, BookOpen, Clock, Layers } from 'lucide-react';
 import { ExerciseDefinition, Protocol } from '../../types/exercise';
 
@@ -42,6 +43,7 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
         event.preventDefault();
         onClose();
       }}
+      onKeyDown={keepDialogFocus}
       className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left text-[var(--text-primary)] shadow-2xl animate-slide-up backdrop:bg-black/50 backdrop:backdrop-blur-sm sm:inset-0 sm:m-auto sm:max-w-lg sm:rounded-3xl sm:p-8"
     >
         {/* Modal Top Header */}
