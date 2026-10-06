@@ -32,6 +32,13 @@ export default function App() {
 
   const refreshStats = () => setStats(StorageService.getStats());
 
+  // Only show the 'no automatic recommendation' notice after an actual failed intent.
+  // Explicit navigation (including returning to Explore) clears that transient context.
+  const handleTabChange = (tab: NavTab) => {
+    setUnavailableGoal(null);
+    setActiveTab(tab);
+  };
+
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
     if (requiresSafetyConfirmation(exercise, proto)) {
@@ -54,7 +61,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-300">
       {!activeSession && (
-        <Header preferences={preferences} onUpdatePreferences={setPreferences} showBack={activeTab !== 'home'} onBack={() => setActiveTab('home')} />
+        <Header preferences={preferences} onUpdatePreferences={setPreferences} showBack={activeTab !== 'home'} onBack={() => handleTabChange('home')} />
       )}
 
       {!activeSession && (
@@ -69,7 +76,7 @@ export default function App() {
         </main>
       )}
 
-      <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} isSessionActive={!!activeSession} />
+      <NavigationBar activeTab={activeTab} onTabChange={handleTabChange} isSessionActive={!!activeSession} />
 
       {activeSession && (
         <BreathingSession
