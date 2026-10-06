@@ -76,10 +76,10 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
 
         {/* Protocol Selector */}
         <div className="mb-6">
-          <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3 flex items-center gap-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3 flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-[var(--color-accent)]" /> Selecciona el Protocolo
-          </label>
-          <div className="space-y-2.5">
+          </p>
+          <div role="group" aria-label="Selecciona el protocolo" className="space-y-2.5">
             {exercise.protocols.map((proto) => {
               const isSelected = selectedProtocol.id === proto.id;
               const durationSec = proto.phases.reduce((a, b) => a + b.duration, 0) * proto.defaultCycles;
@@ -89,6 +89,7 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
                 <button
                   key={proto.id}
                   onClick={() => setSelectedProtocolId(proto.id)}
+                  aria-pressed={isSelected}
                   className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between ${
                     isSelected
                       ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--text-primary)] shadow-sm'
