@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { EXERCISES } from '../../data/exercises';
-import { ExerciseDefinition, Protocol } from '../../types/exercise';
+import { ExerciseDefinition, Goal, Protocol } from '../../types/exercise';
 import { TechniqueDetailModal } from './TechniqueDetailModal';
 import { Shield, ChevronRight } from 'lucide-react';
 
 interface ExploreViewProps {
   onSelectExercise: (exercise: ExerciseDefinition, protocol?: Protocol) => void;
+  unavailableGoal?: Goal | null;
 }
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectExercise,
+  unavailableGoal,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeModalExercise, setActiveModalExercise] = useState<ExerciseDefinition | null>(null);
@@ -37,6 +39,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           {EXERCISES.length} prácticas respiratorias guiadas con protocolo y advertencias claras.
         </p>
       </div>
+
+      {unavailableGoal && (
+        <p role="status" className="mb-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 text-sm text-[var(--text-secondary)]">
+          No hay un protocolo disponible para recomendación automática con esta intención. Puedes explorar las técnicas y revisar las precauciones antes de iniciar una sesión.
+        </p>
+      )}
 
       {/* Category Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
