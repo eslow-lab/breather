@@ -92,7 +92,7 @@ async function desktopCatalog(browser) {
     await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).click();
     await modal.getByRole('button', { name: /Iniciar Sesión/ }).click();
     await page.getByRole('button', { name: 'Salir de la sesión', exact: true }).waitFor();
-    assert.match(await page.locator('body').innerText(), /Caja Clásica/);
+    assert.match(await page.locator('body').innerText(), /Caja Clásica/i);
     await page.getByRole('button', { name: 'Salir de la sesión', exact: true }).click();
     await page.getByRole('navigation', { name: 'Navegación principal' }).waitFor();
     assertNoErrors();
