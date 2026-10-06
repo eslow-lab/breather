@@ -8,7 +8,7 @@ interface HomeViewProps {
   stats: UserStats;
   exercises: ExerciseDefinition[];
   onSelectExercise: (exercise: ExerciseDefinition, protocol?: Protocol) => void;
-  onNavigateTab: (tab: 'explore' | 'history') => void;
+  onNavigateTab: (tab: 'explore' | 'history', unavailableGoal?: Goal) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ stats, exercises, onSelectExercise, onNavigateTab }) => {
@@ -27,7 +27,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ stats, exercises, onSelectEx
       onSelectExercise(recommendation.exercise, recommendation.protocol);
       return;
     }
-    onNavigateTab('explore');
+    onNavigateTab('explore', goal);
   };
 
   return (
