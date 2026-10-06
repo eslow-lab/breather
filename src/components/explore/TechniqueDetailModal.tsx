@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { getProtocolSafety } from '../../engine/recommendations';
+import { keepDialogFocus } from '../common/dialogFocus';
 import { X, Play, ShieldAlert, BookOpen, Clock, Layers } from 'lucide-react';
 import { ExerciseDefinition, Protocol } from '../../types/exercise';
 
@@ -13,20 +15,44 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
   onClose,
   onStartSession,
 }) => {
+  const [selectedProtocolId, setSelectedProtocolId] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !exercise) return;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, [exercise]);
+
   if (!exercise) return null;
 
-  const [selectedProtocol, setSelectedProtocol] = useState<Protocol>(exercise.protocols[0]);
+  // Persist a selection only while its protocol belongs to the displayed exercise.
+  const selectedProtocol = exercise.protocols.find((protocol) => protocol.id === selectedProtocolId) ?? exercise.protocols[0];
+  const selectedSafety = getProtocolSafety(exercise, selectedProtocol);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl animate-slide-up text-left">
+    <dialog
+      ref={dialogRef}
+      aria-modal="true"
+      aria-labelledby="technique-detail-title"
+      aria-describedby="technique-detail-description"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onKeyDown={keepDialogFocus}
+      className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left text-[var(--text-primary)] shadow-2xl animate-slide-up backdrop:bg-black/50 backdrop:backdrop-blur-sm sm:inset-0 sm:m-auto sm:max-w-lg sm:rounded-3xl sm:p-8"
+    >
         {/* Modal Top Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)] mb-6">
           <div>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2.5 py-1 rounded-full">
               {exercise.category}
             </span>
-            <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)] mt-2">
+            <h2 id="technique-detail-title" className="text-xl font-bold tracking-tight text-[var(--text-primary)] mt-2">
               {exercise.name}
             </h2>
             {exercise.aliases && (
@@ -36,6 +62,7 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
             )}
           </div>
           <button
+            autoFocus
             onClick={onClose}
             aria-label="Cerrar detalles"
             className="p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
@@ -45,16 +72,16 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
         </div>
 
         {/* Description */}
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6">
+        <p id="technique-detail-description" className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6">
           {exercise.description}
         </p>
 
         {/* Protocol Selector */}
         <div className="mb-6">
-          <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3 flex items-center gap-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3 flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-[var(--color-accent)]" /> Selecciona el Protocolo
-          </label>
-          <div className="space-y-2.5">
+          </p>
+          <div role="group" aria-label="Selecciona el protocolo" className="space-y-2.5">
             {exercise.protocols.map((proto) => {
               const isSelected = selectedProtocol.id === proto.id;
               const durationSec = proto.phases.reduce((a, b) => a + b.duration, 0) * proto.defaultCycles;
@@ -63,7 +90,8 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
               return (
                 <button
                   key={proto.id}
-                  onClick={() => setSelectedProtocol(proto)}
+                  onClick={() => setSelectedProtocolId(proto.id)}
+                  aria-pressed={isSelected}
                   className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between ${
                     isSelected
                       ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--text-primary)] shadow-sm'
@@ -94,9 +122,9 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
             Paso a Paso
           </h4>
           <ol className="space-y-2 text-xs text-[var(--text-secondary)] list-decimal list-inside">
-            {exercise.instructions.map((step, idx) => (
-              <li key={idx} className="leading-relaxed">
-                {step}
+            {selectedProtocol.phases.map((phase, idx) => (
+              <li key={`${phase.id}-${idx}`} className="leading-relaxed">
+                <strong>{phase.label} ({phase.duration} s):</strong> {phase.instruction}
               </li>
             ))}
           </ol>
@@ -108,7 +136,10 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
             <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
             <div>
               <strong className="block font-semibold mb-0.5">Seguridad y Confort:</strong>
-              {exercise.safety.warnings.join(' ')}
+              {[
+                ...(selectedSafety.warnings ?? []),
+                ...(selectedSafety.contraindications ?? []).map((item) => `Contraindicación: ${item}`),
+              ].join(' ')}
             </div>
           </div>
 
@@ -125,14 +156,12 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
         <button
           onClick={() => {
             onStartSession(exercise, selectedProtocol);
-            onClose();
           }}
           className="w-full py-4 rounded-2xl bg-[var(--color-accent)] text-white text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-md"
         >
           <Play className="w-4 h-4 fill-current" />
           Iniciar Sesión ({selectedProtocol.name})
         </button>
-      </div>
-    </div>
+    </dialog>
   );
 };

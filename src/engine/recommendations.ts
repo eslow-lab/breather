@@ -44,7 +44,7 @@ export function recommendProtocol(
 
     for (const protocol of exercise.protocols) {
       const safety = resolveSafety(exercise, protocol);
-      if (!safety.automaticRecommendation || safety.requiresConfirmation) continue;
+      if (!safety.automaticRecommendation || safety.requiresConfirmation || safety.level === 'advanced') continue;
 
       const score = 100 - safetyRank[safety.level] * 20 + (request.difficulty === exercise.difficulty ? 10 : 0);
       candidates.push({
@@ -62,4 +62,9 @@ export function recommendProtocol(
 
 export function getProtocolSafety(exercise: ExerciseDefinition, protocol: Protocol) {
   return resolveSafety(exercise, protocol);
+}
+
+export function requiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
+  const safety = getProtocolSafety(exercise, protocol);
+  return safety.level === 'advanced' || safety.requiresConfirmation;
 }

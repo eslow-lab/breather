@@ -7,18 +7,15 @@ import { SessionHistoryView } from './components/history/SessionHistoryView';
 import { SettingsView } from './components/settings/SettingsView';
 import { BreathingSession } from './components/session/BreathingSession';
 import { SafetyBanner } from './components/common/SafetyBanner';
-import { ExerciseDefinition, Protocol } from './types/exercise';
+import { ExerciseDefinition, Goal, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
-
-function protocolRequiresSafetyConfirmation(exercise: ExerciseDefinition, protocol: Protocol): boolean {
-  const level = protocol.safety?.level ?? exercise.safety.level;
-  const requiresConfirmation = protocol.safety?.requiresConfirmation ?? exercise.safety.requiresConfirmation;
-  return level === 'advanced' || requiresConfirmation;
-}
+import { requiresSafetyConfirmation } from './engine/recommendations';
+import { EXERCISES } from './data/exercises';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [unavailableGoal, setUnavailableGoal] = useState<Goal | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>(() => StorageService.getPreferences());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
   const [activeSession, setActiveSession] = useState<{ exercise: ExerciseDefinition; protocol: Protocol } | null>(null);
@@ -35,9 +32,16 @@ export default function App() {
 
   const refreshStats = () => setStats(StorageService.getStats());
 
+  // Only show the 'no automatic recommendation' notice after an actual failed intent.
+  // Explicit navigation (including returning to Explore) clears that transient context.
+  const handleTabChange = (tab: NavTab) => {
+    setUnavailableGoal(null);
+    setActiveTab(tab);
+  };
+
   const handleSelectExercise = (exercise: ExerciseDefinition, protocol?: Protocol) => {
     const proto = protocol || exercise.protocols[0];
-    if (protocolRequiresSafetyConfirmation(exercise, proto)) {
+    if (requiresSafetyConfirmation(exercise, proto)) {
       setPendingSafetySession({ exercise, protocol: proto });
       return;
     }
@@ -57,19 +61,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-300">
       {!activeSession && (
-        <Header preferences={preferences} onUpdatePreferences={setPreferences} showBack={activeTab !== 'home'} onBack={() => setActiveTab('home')} />
+        <Header preferences={preferences} onUpdatePreferences={setPreferences} showBack={activeTab !== 'home'} onBack={() => handleTabChange('home')} />
       )}
 
       {!activeSession && (
         <main className="animate-fade-in">
-          {activeTab === 'home' && <HomeView stats={stats} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />}
-          {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} />}
+          {activeTab === 'home' && <HomeView stats={stats} exercises={EXERCISES} onSelectExercise={handleSelectExercise} onNavigateTab={(tab, goal) => {
+              setUnavailableGoal(goal ?? null);
+              setActiveTab(tab);
+            }} />}
+          {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} unavailableGoal={unavailableGoal} />}
           {activeTab === 'history' && <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />}
           {activeTab === 'settings' && <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />}
         </main>
       )}
 
-      <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} isSessionActive={!!activeSession} />
+      <NavigationBar activeTab={activeTab} onTabChange={handleTabChange} isSessionActive={!!activeSession} />
 
       {activeSession && (
         <BreathingSession
