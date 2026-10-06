@@ -7,7 +7,7 @@ import { SessionHistoryView } from './components/history/SessionHistoryView';
 import { SettingsView } from './components/settings/SettingsView';
 import { BreathingSession } from './components/session/BreathingSession';
 import { SafetyBanner } from './components/common/SafetyBanner';
-import { ExerciseDefinition, Protocol } from './types/exercise';
+import { ExerciseDefinition, Goal, Protocol } from './types/exercise';
 import { UserPreferences, UserStats, SessionRecord } from './types/session';
 import { StorageService } from './services/StorageService';
 import { requiresSafetyConfirmation } from './engine/recommendations';
@@ -15,6 +15,7 @@ import { EXERCISES } from './data/exercises';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [unavailableGoal, setUnavailableGoal] = useState<Goal | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>(() => StorageService.getPreferences());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
   const [activeSession, setActiveSession] = useState<{ exercise: ExerciseDefinition; protocol: Protocol } | null>(null);
@@ -58,8 +59,11 @@ export default function App() {
 
       {!activeSession && (
         <main className="animate-fade-in">
-          {activeTab === 'home' && <HomeView stats={stats} exercises={EXERCISES} onSelectExercise={handleSelectExercise} onNavigateTab={(tab) => setActiveTab(tab)} />}
-          {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} />}
+          {activeTab === 'home' && <HomeView stats={stats} exercises={EXERCISES} onSelectExercise={handleSelectExercise} onNavigateTab={(tab, goal) => {
+              setUnavailableGoal(goal ?? null);
+              setActiveTab(tab);
+            }} />}
+          {activeTab === 'explore' && <ExploreView onSelectExercise={handleSelectExercise} unavailableGoal={unavailableGoal} />}
           {activeTab === 'history' && <SessionHistoryView stats={stats} onRefreshStats={refreshStats} />}
           {activeTab === 'settings' && <SettingsView preferences={preferences} onUpdatePreferences={setPreferences} onRefreshStats={refreshStats} />}
         </main>
