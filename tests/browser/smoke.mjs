@@ -91,9 +91,9 @@ async function desktopCatalog(browser) {
     await modal.waitFor({ state: 'visible' });
     await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).click();
     await modal.getByRole('button', { name: /Iniciar Sesión/ }).click();
-    await page.getByRole('button', { name: 'Salir de la sesión' }).waitFor();
+    await page.getByRole('button', { name: 'Salir de la sesión', exact: true }).waitFor();
     assert.match(await page.locator('body').innerText(), /Caja Clásica/);
-    await page.getByRole('button', { name: 'Salir de la sesión' }).click();
+    await page.getByRole('button', { name: 'Salir de la sesión', exact: true }).click();
     await page.getByRole('navigation', { name: 'Navegación principal' }).waitFor();
     assertNoErrors();
     console.log('PASS desktop catalog, keyboard, native modal, protocol switch, session start/stop');
