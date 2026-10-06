@@ -37,3 +37,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Temporary dependency audit diagnosis
+        run: npm audit --audit-level=high
