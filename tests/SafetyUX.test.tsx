@@ -189,18 +189,16 @@ test('Technique detail instructions always reflect the selected protocol phases'
   let renderer: ReactTestRenderer | null = null;
   try {
     act(() => { renderer = create(<TechniqueDetailModal exercise={ex} onClose={() => {}} onStartSession={() => {}} />); });
-    let html = JSON.stringify(renderer!.toJSON());
-    assert.match(html, /Inhala \(3 s\):/);
-    assert.doesNotMatch(html, /Inhala en 4 segundos/);
+    const selectedPhaseLabel = () => renderer!.root.findByType('li').findByType('strong').children.join('');
+    assert.equal(selectedPhaseLabel(), 'Inhala (3 s):');
+    assert.doesNotMatch(JSON.stringify(renderer!.toJSON()), /Inhala en 4 segundos/);
 
     const protocolButtons = renderer!.root.findAllByType('button').filter(
       (button) => String(button.props.className).includes('w-full text-left p-4'),
     );
     assert.equal(protocolButtons[0].props['aria-pressed'], true);
     act(() => protocolButtons[1].props.onClick());
-    html = JSON.stringify(renderer!.toJSON());
-    assert.match(html, /Inhala \(5 s\):/);
-    assert.doesNotMatch(html, /Inhala \(3 s\):/);
+    assert.equal(selectedPhaseLabel(), 'Inhala (5 s):');
     assert.equal(renderer!.root.findAllByType('button').filter(
       (button) => String(button.props.className).includes('w-full text-left p-4'),
     )[1].props['aria-pressed'], true);
