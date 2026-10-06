@@ -78,3 +78,50 @@ test('requiresSafetyConfirmation uses resolved protocol safety', () => {
   const advancedProtocol = { ...lowRiskProtocol, safety: { level: 'advanced' as const, requiresConfirmation: false } };
   assert.equal(requiresSafetyConfirmation(exercise, advancedProtocol), true);
 });
+
+test('automatic recommendations exclude advanced protocols even without a confirmation flag', () => {
+  const exercise = baseExercise({
+    safety: {
+      level: 'advanced',
+      warnings: [],
+      requiresConfirmation: false,
+      automaticRecommendation: true,
+    },
+  });
+  assert.equal(recommendProtocol([exercise], { goal: 'calm' }), null);
+});
+
+test('protocol-level safety can override automatic eligibility without changing the exercise', () => {
+  const exercise = baseExercise();
+  const protocols = [
+    { ...exercise.protocols[0], id: 'not-automatic', safety: { automaticRecommendation: false } },
+    { ...exercise.protocols[0], id: 'recommended', safety: { automaticRecommendation: true } },
+  ];
+  const result = recommendProtocol([{ ...exercise, protocols }], { goal: 'calm' });
+  assert.equal(result?.protocol.id, 'recommended');
+});
+
+test('getProtocolSafety inherits missing fields and allows explicit empty overrides', () => {
+  const exercise = baseExercise({
+    safety: {
+      level: 'moderate',
+      warnings: ['General warning'],
+      contraindications: ['General contraindication'],
+      requiresConfirmation: true,
+      automaticRecommendation: false,
+    },
+  });
+  const resolved = getProtocolSafety(exercise, {
+    ...exercise.protocols[0],
+    safety: {
+      warnings: [],
+      automaticRecommendation: true,
+    },
+  });
+  assert.equal(resolved.level, 'moderate');
+  assert.deepEqual(resolved.warnings, []);
+  assert.deepEqual(resolved.contraindications, ['General contraindication']);
+  assert.equal(resolved.requiresConfirmation, true);
+  assert.equal(resolved.automaticRecommendation, true);
+  assert.deepEqual(exercise.safety.warnings, ['General warning']);
+});
