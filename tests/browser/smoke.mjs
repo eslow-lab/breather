@@ -67,13 +67,13 @@ async function desktopCatalog(browser) {
 
     assert.match(await modal.locator('ol li').first().innerText(), /3 s/);
     assert.equal(
-      await modal.getByRole('button', { name: /Caja Corta/ }).getAttribute('aria-pressed'),
+      await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Corta/ }).getAttribute('aria-pressed'),
       'true',
     );
-    await modal.getByRole('button', { name: /Caja Clásica/ }).click();
+    await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).click();
     assert.match(await modal.locator('ol li').first().innerText(), /4 s/);
     assert.equal(
-      await modal.getByRole('button', { name: /Caja Clásica/ }).getAttribute('aria-pressed'),
+      await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).getAttribute('aria-pressed'),
       'true',
     );
     assert.match(await modal.innerText(), /Si sientes mareo/);
@@ -85,7 +85,7 @@ async function desktopCatalog(browser) {
 
     await boxCard.click();
     await modal.waitFor({ state: 'visible' });
-    await modal.getByRole('button', { name: /Caja Clásica/ }).click();
+    await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).click();
     await modal.getByRole('button', { name: /Iniciar Sesión/ }).click();
     await page.getByRole('button', { name: 'Salir de la sesión' }).waitFor();
     assert.match(await page.locator('body').innerText(), /Caja Clásica/);
@@ -123,7 +123,7 @@ async function mobileCatalog(browser) {
     assert.ok(bounds && bounds.x >= -1 && bounds.y >= -1
       && bounds.x + bounds.width <= 391 && bounds.y + bounds.height <= 781,
       'Mobile dialog must fit viewport');
-    await modal.getByRole('button', { name: /Caja Clásica/ }).click();
+    await modal.getByRole('group', { name: 'Selecciona el protocolo' }).getByRole('button', { name: /Caja Clásica/ }).click();
     assert.match(await modal.locator('ol li').first().innerText(), /4 s/);
     await modal.getByRole('button', { name: 'Cerrar detalles' }).click();
     await modal.waitFor({ state: 'hidden' });
