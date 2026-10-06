@@ -80,6 +80,10 @@ async function desktopCatalog(browser) {
 
     await page.keyboard.press('Escape');
     await modal.waitFor({ state: 'hidden' });
+    await page.waitForFunction(() => {
+      const focused = document.activeElement;
+      return focused instanceof HTMLButtonElement && focused.textContent?.includes('Respiración en Caja');
+    });
     assert.equal(await boxCard.evaluate((button) => document.activeElement === button), true,
       'Focus should return to the card after Escape');
 
