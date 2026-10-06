@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, ShieldCheck, X } from 'lucide-react';
 import { ExerciseDefinition, Protocol } from '../../types/exercise';
 import { getProtocolSafety } from '../../engine/recommendations';
+import { keepDialogFocus } from './dialogFocus';
 
 interface SafetyBannerProps {
   exercise: ExerciseDefinition;
@@ -28,9 +29,17 @@ export const SafetyBanner: React.FC<SafetyBannerProps> = ({ exercise, protocol, 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
+    const previouslyFocused = document.activeElement;
+    const opener = previouslyFocused instanceof HTMLElement && !dialog.contains(previouslyFocused)
+      ? previouslyFocused
+      : null;
     if (!dialog.open) dialog.showModal();
     return () => {
       if (dialog.open) dialog.close();
+      // If the launcher is still part of the page, restore the prior keyboard position.
+      if (opener?.isConnected) {
+        requestAnimationFrame(() => { if (opener.isConnected) opener.focus(); });
+      }
     };
   }, []);
 
@@ -45,6 +54,7 @@ export const SafetyBanner: React.FC<SafetyBannerProps> = ({ exercise, protocol, 
         event.preventDefault();
         onCancel();
       }}
+      onKeyDown={keepDialogFocus}
     >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
