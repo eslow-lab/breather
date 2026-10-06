@@ -154,7 +154,6 @@ export const TechniqueDetailModal: React.FC<TechniqueDetailModalProps> = ({
         <button
           onClick={() => {
             onStartSession(exercise, selectedProtocol);
-            onClose();
           }}
           className="w-full py-4 rounded-2xl bg-[var(--color-accent)] text-white text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-md"
         >
