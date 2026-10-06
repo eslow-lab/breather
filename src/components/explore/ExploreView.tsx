@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { EXERCISES } from '../../data/exercises';
 import { ExerciseDefinition, Goal, Protocol } from '../../types/exercise';
 import { TechniqueDetailModal } from './TechniqueDetailModal';
@@ -15,6 +15,17 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeModalExercise, setActiveModalExercise] = useState<ExerciseDefinition | null>(null);
+  const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const closeDetails = () => {
+    setActiveModalExercise(null);
+    const trigger = detailTriggerRef.current;
+    detailTriggerRef.current = null;
+    // Restore keyboard position after React removes the native dialog.
+    requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus();
+    });
+  };
 
   const categories = [
     { id: 'all', label: 'Todas' },
@@ -71,7 +82,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <button
             type="button"
             key={ex.id}
-            onClick={() => setActiveModalExercise(ex)}
+            onClick={(event) => {
+              detailTriggerRef.current = event.currentTarget;
+              setActiveModalExercise(ex);
+            }}
             className="w-full text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--color-accent)] rounded-3xl p-5 transition-all hover:shadow-md flex items-center justify-between"
           >
             <span className="block flex-1 pr-4">
@@ -101,10 +115,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* Detail Modal */}
       <TechniqueDetailModal
         exercise={activeModalExercise}
-        onClose={() => setActiveModalExercise(null)}
+        onClose={closeDetails}
         onStartSession={(ex, proto) => {
-          onSelectExercise(ex, proto);
+          detailTriggerRef.current = null;
           setActiveModalExercise(null);
+          onSelectExercise(ex, proto);
         }}
       />
     </div>
