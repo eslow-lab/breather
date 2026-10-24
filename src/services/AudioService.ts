@@ -1,10 +1,25 @@
+import { SoundMode } from '../types/session';
+
+type PhaseType = 'inhale' | 'hold' | 'exhale' | 'pause';
+
+const PHASE_LABELS: Record<PhaseType, string> = {
+  inhale: 'Inhala',
+  hold: 'Mantén',
+  exhale: 'Exhala',
+  pause: 'Pausa',
+};
+
+const BINAURAL_BASE_FREQUENCIES: Record<PhaseType, number> = {
+  inhale: 220,
+  hold: 196,
+  exhale: 174,
+  pause: 185,
+};
+
 export class AudioService {
   private ctx: AudioContext | null = null;
   private isMuted = false;
-
-  constructor() {
-    // Lazy init audio context on first user interaction.
-  }
+  private soundMode: SoundMode = 'chime';
 
   private initContext(): void {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -25,8 +40,68 @@ export class AudioService {
     this.isMuted = muted;
   }
 
-  public playPhaseCue(phaseType: 'inhale' | 'hold' | 'exhale' | 'pause'): void {
-    if (this.isMuted) return;
+  public setSoundMode(mode: SoundMode): void {
+    this.soundMode = mode;
+  }
+
+  public getSoundMode(): SoundMode {
+    return this.soundMode;
+  }
+
+  public playPhaseCue(phaseType: PhaseType): void {
+    if (this.isMuted || this.soundMode === 'silent') return;
+
+    if (this.soundMode === 'voice_chime') {
+      this.playVoiceCue(phaseType);
+      this.playChimeCue(phaseType);
+      return;
+    }
+
+    if (this.soundMode === 'binaural') {
+      this.playBinauralCue(phaseType);
+      return;
+    }
+
+    this.playChimeCue(phaseType);
+  }
+
+  public playCompletionCue(): void {
+    if (this.isMuted || this.soundMode === 'silent') return;
+
+    if (this.soundMode === 'voice_chime') {
+      this.playVoice('Sesión completada');
+      this.playCompletionChime();
+      return;
+    }
+
+    if (this.soundMode === 'binaural') {
+      this.playBinauralCompletion();
+      return;
+    }
+
+    this.playCompletionChime();
+  }
+
+  private playVoiceCue(phaseType: PhaseType): void {
+    this.playVoice(PHASE_LABELS[phaseType]);
+  }
+
+  private playVoice(text: string): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 0.7;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Voice playback inhibited by browser policy:', err);
+    }
+  }
+
+  private playChimeCue(phaseType: PhaseType): void {
     this.initContext();
     if (!this.ctx) return;
 
@@ -37,8 +112,7 @@ export class AudioService {
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      // These tunings are an experiential sound-design choice.
-      // Breather does not present them as therapeutic frequencies.
+      // Experiential sound design. These frequencies are not presented as therapeutic claims.
       if (phaseType === 'inhale') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(432, now);
@@ -77,14 +151,110 @@ export class AudioService {
     }
   }
 
-  public playCompletionChime(): void {
-    if (this.isMuted) return;
+  private playBinauralCue(phaseType: PhaseType): void {
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      if (!this.ctx.createStereoPanner) {
+        this.playChimeCue(phaseType);
+        return;
+      }
+
+      const now = this.ctx.currentTime;
+      const base = BINAURAL_BASE_FREQUENCIES[phaseType];
+      const beat = 6;
+      const duration = phaseType === 'hold' ? 1.9 : 1.5;
+
+      const left = this.ctx.createOscillator();
+      const right = this.ctx.createOscillator();
+      const leftGain = this.ctx.createGain();
+      const rightGain = this.ctx.createGain();
+      const leftPan = this.ctx.createStereoPanner();
+      const rightPan = this.ctx.createStereoPanner();
+
+      left.type = 'sine';
+      right.type = 'sine';
+      left.frequency.setValueAtTime(base, now);
+      right.frequency.setValueAtTime(base + beat, now);
+      leftPan.pan.setValueAtTime(-1, now);
+      rightPan.pan.setValueAtTime(1, now);
+
+      left.connect(leftGain);
+      leftGain.connect(leftPan);
+      leftPan.connect(this.ctx.destination);
+      right.connect(rightGain);
+      rightGain.connect(rightPan);
+      rightPan.connect(this.ctx.destination);
+
+      leftGain.gain.setValueAtTime(0.0001, now);
+      rightGain.gain.setValueAtTime(0.0001, now);
+      leftGain.gain.linearRampToValueAtTime(0.08, now + 0.15);
+      rightGain.gain.linearRampToValueAtTime(0.08, now + 0.15);
+      leftGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      rightGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      left.start(now);
+      right.start(now);
+      left.stop(now + duration + 0.05);
+      right.stop(now + duration + 0.05);
+    } catch (err) {
+      console.warn('Binaural playback inhibited by browser policy:', err);
+    }
+  }
+
+  private playBinauralCompletion(): void {
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      if (!this.ctx.createStereoPanner) {
+        this.playCompletionChime();
+        return;
+      }
+
+      const now = this.ctx.currentTime;
+      const left = this.ctx.createOscillator();
+      const right = this.ctx.createOscillator();
+      const leftGain = this.ctx.createGain();
+      const rightGain = this.ctx.createGain();
+      const leftPan = this.ctx.createStereoPanner();
+      const rightPan = this.ctx.createStereoPanner();
+
+      left.type = 'sine';
+      right.type = 'sine';
+      left.frequency.setValueAtTime(220, now);
+      right.frequency.setValueAtTime(226, now);
+      leftPan.pan.setValueAtTime(-1, now);
+      rightPan.pan.setValueAtTime(1, now);
+      leftGain.gain.setValueAtTime(0.0001, now);
+      rightGain.gain.setValueAtTime(0.0001, now);
+      leftGain.gain.linearRampToValueAtTime(0.08, now + 0.15);
+      rightGain.gain.linearRampToValueAtTime(0.08, now + 0.15);
+      leftGain.gain.exponentialRampToValueAtTime(0.0001, now + 2);
+      rightGain.gain.exponentialRampToValueAtTime(0.0001, now + 2);
+
+      left.connect(leftGain);
+      leftGain.connect(leftPan);
+      leftPan.connect(this.ctx.destination);
+      right.connect(rightGain);
+      rightGain.connect(rightPan);
+      rightPan.connect(this.ctx.destination);
+      left.start(now);
+      right.start(now);
+      left.stop(now + 2.05);
+      right.stop(now + 2.05);
+    } catch (err) {
+      console.warn('Binaural completion playback inhibited by browser policy:', err);
+    }
+  }
+
+  private playCompletionChime(): void {
     this.initContext();
     if (!this.ctx) return;
 
     try {
       const now = this.ctx.currentTime;
-      // Experiential completion chord. The tuning is not presented as a therapeutic claim.
       const freqs = [528, 660, 792];
       freqs.forEach((freq, idx) => {
         if (!this.ctx) return;

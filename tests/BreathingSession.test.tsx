@@ -21,6 +21,7 @@ const originalAudio = {
   unlockAudio: audioService.unlockAudio,
   playPhaseCue: audioService.playPhaseCue,
   playCompletionChime: audioService.playCompletionChime,
+  setSoundMode: audioService.setSoundMode,
 };
 const originalHaptics = {
   triggerPhaseHaptic: hapticsService.triggerPhaseHaptic,
@@ -94,6 +95,7 @@ const protocol = {
 
 const preferences = {
   soundEnabled: true,
+  soundMode: 'chime',
   hapticsEnabled: true,
   reducedMotion: false,
 } as any;
@@ -110,6 +112,7 @@ afterEach(() => {
   audioService.unlockAudio = originalAudio.unlockAudio;
   audioService.playPhaseCue = originalAudio.playPhaseCue;
   audioService.playCompletionChime = originalAudio.playCompletionChime;
+  audioService.setSoundMode = originalAudio.setSoundMode;
   hapticsService.triggerPhaseHaptic = originalHaptics.triggerPhaseHaptic;
   hapticsService.triggerCompletion = originalHaptics.triggerCompletion;
   restoreClockAndRaf();
@@ -139,6 +142,15 @@ test('mount starts the real engine and unmount stops it', () => {
   render();
   assert.equal(unlockCalls, 1);
   assert.ok(renderer?.root);
+});
+
+test('session applies the selected sound mode to AudioService', () => {
+  const modes: string[] = [];
+  audioService.setSoundMode = (mode: string) => { modes.push(mode); };
+
+  render({ preferences: { ...preferences, soundMode: 'voice_chime' } });
+
+  assert.deepEqual(modes, ['voice_chime', 'voice_chime']);
 });
 
 test('real engine phase-start event triggers audio and haptics', () => {

@@ -33,6 +33,7 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   const engineRef = useRef<BreathingEngine | null>(null);
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(preferences.soundEnabled);
+  const [soundMode, setSoundMode] = useState(preferences.soundMode);
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(preferences.hapticsEnabled);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const abortRecordedRef = useRef(false);
@@ -42,6 +43,7 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
     engineRef.current = engine;
 
     audioService.setMuted(!soundEnabled);
+    audioService.setSoundMode(soundMode);
     hapticsService.setEnabled(hapticsEnabled);
 
     const unsubscribe = engine.subscribe((eventType, state) => {
@@ -52,7 +54,7 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
         audioService.playPhaseCue(pType);
         hapticsService.triggerPhaseHaptic(pType);
       } else if (eventType === 'SESSION_COMPLETED') {
-        audioService.playCompletionChime();
+        audioService.playCompletionCue();
         hapticsService.triggerCompletion();
         setIsCompleted(true);
       }
@@ -73,13 +75,18 @@ export const BreathingSession: React.FC<BreathingSessionProps> = ({
   }, [soundEnabled]);
 
   useEffect(() => {
+    audioService.setSoundMode(soundMode);
+  }, [soundMode]);
+
+  useEffect(() => {
     hapticsService.setEnabled(hapticsEnabled);
   }, [hapticsEnabled]);
 
   useEffect(() => {
     setSoundEnabled(preferences.soundEnabled);
+    setSoundMode(preferences.soundMode);
     setHapticsEnabled(preferences.hapticsEnabled);
-  }, [preferences.soundEnabled, preferences.hapticsEnabled]);
+  }, [preferences.soundEnabled, preferences.soundMode, preferences.hapticsEnabled]);
 
   const handleTogglePlayPause = () => {
     if (!engineRef.current || !engineState) return;

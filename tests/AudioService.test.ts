@@ -11,6 +11,13 @@ class MockGainNode {
   };
 }
 
+class MockStereoPannerNode {
+  connect() {}
+  pan = {
+    setValueAtTime() {},
+  };
+}
+
 class MockOscillatorNode {
   type = '';
   frequency = {
@@ -46,6 +53,10 @@ class MockAudioContext {
     return new MockGainNode();
   }
 
+  createStereoPanner() {
+    return new MockStereoPannerNode();
+  }
+
   resume() {
     this.resumeCalls++;
     this.state = 'running';
@@ -64,7 +75,27 @@ function installAudioContext() {
 
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
-    value: { AudioContext: TestAudioContext },
+    value: {
+      AudioContext: TestAudioContext,
+      speechSynthesis: {
+        spoken: [] as string[],
+        cancel() {},
+        speak(utterance: { text: string }) {
+          this.spoken.push(utterance.text);
+        },
+      },
+    },
+  });
+
+  Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', {
+    configurable: true,
+    value: class {
+      constructor(public text: string) {}
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+    },
   });
 
   return contexts;
@@ -92,6 +123,55 @@ test('muted audio does not create oscillators', () => {
   assert.equal(contexts.length, 0);
 });
 
+test('silent sound mode does not create an audio context', () => {
+  const contexts = installAudioContext();
+  const service = new AudioService();
+  service.setSoundMode('silent');
+
+  service.playPhaseCue('inhale');
+  service.playCompletionCue();
+
+  assert.equal(service.getSoundMode(), 'silent');
+  assert.equal(contexts.length, 0);
+});
+
+test('chime sound mode creates one oscillator for a phase cue', () => {
+  const contexts = installAudioContext();
+  const service = new AudioService();
+  service.setSoundMode('chime');
+
+  service.playPhaseCue('inhale');
+
+  assert.equal(service.getSoundMode(), 'chime');
+  assert.equal(contexts.length, 1);
+  assert.equal(contexts[0].oscillators.length, 1);
+});
+
+test('voice plus chime mode speaks the phase and creates chime audio', () => {
+  const contexts = installAudioContext();
+  const service = new AudioService();
+  service.setSoundMode('voice_chime');
+
+  service.playPhaseCue('exhale');
+
+  assert.equal(service.getSoundMode(), 'voice_chime');
+  assert.equal(contexts.length, 1);
+  assert.equal(contexts[0].oscillators.length, 1);
+  assert.deepEqual((globalThis as any).window.speechSynthesis.spoken, ['Exhala']);
+});
+
+test('binaural sound mode creates two oscillators for a phase cue', () => {
+  const contexts = installAudioContext();
+  const service = new AudioService();
+  service.setSoundMode('binaural');
+
+  service.playPhaseCue('hold');
+
+  assert.equal(service.getSoundMode(), 'binaural');
+  assert.equal(contexts.length, 1);
+  assert.equal(contexts[0].oscillators.length, 2);
+});
+
 test('phase cues create the expected oscillator lifecycle', async () => {
   const contexts = installAudioContext();
   const service = new AudioService();
@@ -110,7 +190,7 @@ test('completion chime schedules three oscillators', () => {
   const contexts = installAudioContext();
   const service = new AudioService();
 
-  service.playCompletionChime();
+  service.playCompletionCue();
 
   assert.equal(contexts.length, 1);
   assert.equal(contexts[0].oscillators.length, 3);
